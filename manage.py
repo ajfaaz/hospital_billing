@@ -3,6 +3,9 @@
 import os
 import sys
 
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hospital_billing.settings')
+
+
 
 def main():
     """Run administrative tasks."""
