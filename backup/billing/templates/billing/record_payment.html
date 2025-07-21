@@ -1,0 +1,13 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Record Payment{% endblock %}
+{% block content %}
+
+<h2>Record Payment for Invoice #{{ bill.invoice_no }}</h2>
+
+<form method="POST" class="card p-4 shadow-sm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Submit Payment</button>
+</form>
+
+{% endblock %}

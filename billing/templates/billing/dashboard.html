@@ -1,0 +1,64 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<h2>Dashboard Overview</h2>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Patients</h5>
+                <p class="card-text">{{ patient_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Appointments</h5>
+                <p class="card-text">{{ appointment_count }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-info mb-3">
+            <div class="card-body">
+                <h5 class="card-title">Bills</h5>
+                <p class="card-text">{{ bill_count }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<h4>Summary Chart</h4>
+<canvas id="summaryChart" width="400" height="200"></canvas>
+
+<script>
+    const ctx = document.getElementById('summaryChart').getContext('2d');
+    const summaryChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Patients', 'Appointments', 'Bills'],
+            datasets: [{
+                label: 'Count',
+                data: [{{ patient_count }}, {{ appointment_count }}, {{ bill_count }}],
+                backgroundColor: ['#0d6efd', '#198754', '#0dcaf0']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: 'Hospital Statistics'
+                }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

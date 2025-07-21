@@ -1,0 +1,21 @@
+<html>
+  <body>
+    <h2>Invoice {{ bill.invoice_no }}</h2>
+    <p>Patient: {{ bill.patient }}</p>
+    <p>Date: {{ bill.created_at }}</p>
+    <hr>
+    <table border="1" width="100%">
+      <tr><th>Service</th><th>Qty</th><th>Subtotal</th></tr>
+      {% for item in items %}
+      <tr>
+        <td>{{ item.service.name }}</td>
+        <td>{{ item.quantity }}</td>
+        <td>${{ item.subtotal }}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <p><strong>Total:</strong> ${{ bill.total_amount }}</p>
+    <p><strong>Paid:</strong> ${{ paid }}</p>
+    <p><strong>Due:</strong> ${{ due }}</p>
+  </body>
+</html>

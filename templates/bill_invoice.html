@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Invoice - {{ bill.invoice_number }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1, h2, h3 { color: #444; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+        th { background-color: #eee; }
+        .total { font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>🏥 {{ hospital_name|default:"Hospital Billing System" }}</h1>
+    <h2>Invoice #: {{ bill.invoice_number }}</h2>
+    <p><strong>Date:</strong> {{ bill.date }}</p>
+
+    <h3>Patient Information</h3>
+    <p><strong>Name:</strong> {{ bill.patient.name }}</p>
+    <p><strong>Contact:</strong> {{ bill.patient.phone }}</p>
+
+    <h3>Services</h3>
+    {% if bill.services.all %}
+    <table>
+        <thead><tr><th>Service</th><th>Cost</th></tr></thead>
+        <tbody>
+            {% for item in bill.services.all %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>${{ item.cost }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No services billed.</p>
+    {% endif %}
+
+    <h3>Pharmacy Charges</h3>
+    {% if bill.medicines.all %}
+    <table>
+        <thead><tr><th>Medicine</th><th>Qty</th><th>Cost</th></tr></thead>
+        <tbody>
+            {% for item in bill.medicines.all %}
+            <tr>
+                <td>{{ item.medicine.name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>${{ item.cost }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No medicines billed.</p>
+    {% endif %}
+
+    <h3>Room/Bed Charges</h3>
+    {% if bill.admission %}
+        <p><strong>Room:</strong> {{ bill.admission.bed.room.room_type }} - {{ bill.admission.bed.room.room_number }}</p>
+        <p><strong>Bed:</strong> {{ bill.admission.bed.bed_number }}</p>
+        <p><strong>Days Stayed:</strong> {{ bill.admission.stay_duration }}</p>
+        <p><strong>Daily Rate:</strong> ${{ bill.admission.bed.room.price_per_day }}</p>
+        <p><strong>Total Room Charge:</strong> ${{ bill.admission.stay_duration|multiply:bill.admission.bed.room.price_per_day }}</p>
+    {% else %}
+        <p>No admission details available.</p>
+    {% endif %}
+
+    <h2>Total Amount Due: ${{ bill.total_amount }}</h2>
+    
+</body>
+</html>

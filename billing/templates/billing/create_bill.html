@@ -1,0 +1,37 @@
+{% extends 'base_dashboard.html' %}
+{% block title %}Create Bill{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">Create Bill for {{ patient.name }}</h2>
+
+<form method="POST">
+    {% csrf_token %}
+
+    <div class="card p-4 shadow-sm">
+        <div class="mb-3">
+            <label class="form-label">Patient</label>
+            <input type="text" class="form-control" value="{{ patient.name }}" disabled>
+        </div>
+
+        <div id="service-items">
+            <div class="row mb-3 service-row">
+                <div class="col-md-6">
+                    <label class="form-label">Service</label>
+                    <select name="service" class="form-select">
+                        {% for service in services %}
+                        <option value="{{ service.id }}">{{ service.name }} - ${{ service.price }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Quantity</label>
+                    <input type="number" name="quantity" class="form-control" min="1" value="1">
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-3">Generate Bill</button>
+    </div>
+</form>
+
+{% endblock %}

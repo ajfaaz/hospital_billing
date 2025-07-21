@@ -1,0 +1,44 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Invoice #{{ bill.invoice_no }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <div class="card">
+    <div class="card-header">
+      <h4>Invoice #{{ bill.invoice_no }}</h4>
+      <p>Patient: {{ bill.patient.full_name }}</p>
+      <p>Date: {{ bill.created_at }}</p>
+    </div>
+    <div class="card-body">
+
+      <h5>Services</h5>
+      <table class="table table-bordered">
+        <thead class="table-light">
+          <tr>
+            <th>Service</th>
+            <th>Quantity</th>
+            <th>Subtotal</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td>{{ item.service.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>${{ item.subtotal }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+
+      <h5 class="mt-4">Payment Summary</h5>
+      <p><strong>Total Amount:</strong> ${{ bill.total_amount }}</p>
+      <p><strong>Paid:</strong> ${{ paid }}</p>
+      <p><strong>Due:</strong> ${{ due }}</p>
+
+      <a href="{% url 'record_payment' bill.id %}" class="btn btn-success mt-3">Record Payment</a>
+      <a href="{% url 'download_invoice_pdf' bill.id %}" class="btn btn-outline-primary mt-3">Download PDF</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
