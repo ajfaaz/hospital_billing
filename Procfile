@@ -1,2 +1,3 @@
-web: gunicorn hospital_billing.wsgi
+web: gunicorn HOSPITAL_BILLING.hospital_billing.wsgi
+
 
