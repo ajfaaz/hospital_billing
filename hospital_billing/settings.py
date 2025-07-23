@@ -29,7 +29,7 @@ INSTALLED_APPS = [
 # MIDDLEWARE
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files on Render/Heroku
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files on Heroku
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -39,14 +39,14 @@ MIDDLEWARE = [
 ]
 
 # URL and WSGI
-ROOT_URLCONF = 'config.urls'
-WSGI_APPLICATION = 'config.wsgi.application'
+ROOT_URLCONF = 'hospital_billing.urls'
+WSGI_APPLICATION = 'hospital_billing.wsgi.application'
 
 # TEMPLATES
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'templates'],  # ✅ Moved inside TEMPLATES
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -102,11 +102,6 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='your_app_password')
 
 # AUTO FIELD
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
-# RENDER / HEROKU SPECIFIC (STATICFILES + DATABASE URL)
-if os.getenv('RENDER'):
-    import django_heroku
-    django_heroku.settings(locals())
 
 # LOGGING
 LOGGING = {

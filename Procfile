@@ -1,1 +1,1 @@
-web: gunicorn config.wsgi:application
+web: gunicorn hospital_billing.wsgi
