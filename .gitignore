@@ -1,0 +1,35 @@
+Set-Content -Path ".gitignore" -Value "
+# Virtual Environment
+env/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyc
+.Python
+*.egg-info/
+.installed.cfg
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Static
+staticfiles/
+media/
+"
