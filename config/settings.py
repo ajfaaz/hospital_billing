@@ -29,7 +29,7 @@ INSTALLED_APPS = [
 # MIDDLEWARE
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files on Render
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # For static files on Render/Heroku
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -39,14 +39,14 @@ MIDDLEWARE = [
 ]
 
 # URL and WSGI
-ROOT_URLCONF = 'hospital_billing.urls'
-WSGI_APPLICATION = 'hospital_billing.wsgi.application'
+ROOT_URLCONF = 'config.urls'
+WSGI_APPLICATION = 'config.wsgi.application'
 
 # TEMPLATES
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],  # You can set template dirs here if needed
+        'DIRS': [BASE_DIR / 'templates'],  # ✅ Moved inside TEMPLATES
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -80,8 +80,8 @@ USE_TZ = True
 
 # STATIC FILES
 STATIC_URL = '/static/'
-STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'  # Where collectstatic puts files
+STATICFILES_DIRS = [BASE_DIR / 'static']  # Where Django looks for static files
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # CUSTOM USER
@@ -103,13 +103,12 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='your_app_password')
 # AUTO FIELD
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# RENDER SPECIFIC (STATICFILES + DATABASE URL)
+# RENDER / HEROKU SPECIFIC (STATICFILES + DATABASE URL)
 if os.getenv('RENDER'):
     import django_heroku
     django_heroku.settings(locals())
 
-'DIRS': [BASE_DIR / 'templates'],
-
+# LOGGING
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
