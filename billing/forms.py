@@ -8,7 +8,7 @@ User = get_user_model()
 class CustomUserCreationForm(UserCreationForm):
     email = forms.EmailField(required=True)
     role = forms.ChoiceField(
-        choices=User.ROLE_CHOICES,
+        choices=User.USER_ROLE_CHOICES,
         required=True,
         widget=forms.Select(attrs={'class': 'form-control'})
     )
@@ -24,6 +24,7 @@ class CustomUserCreationForm(UserCreationForm):
         if commit:
             user.save()
         return user
+
 
 
 class BillItemForm(forms.ModelForm):
