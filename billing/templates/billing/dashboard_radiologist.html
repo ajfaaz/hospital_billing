@@ -1,0 +1,7 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Radiologist Dashboard{% endblock %}
+
+{% block content %}
+<h2>Welcome, Radiologist {{ request.user.username }}</h2>
+<p>This dashboard can later show scan reports, patient referrals, etc.</p>
+{% endblock %}

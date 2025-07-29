@@ -1,14 +1,20 @@
+{% extends 'billing/base.html' %}
+{% block content %}
 <h2>Audit Logs</h2>
 <table>
-  <tr><th>Time</th><th>User</th><th>Action</th><th>Model</th><th>ID</th><th>Details</th></tr>
-  {% for log in logs %}
-  <tr>
-    <td>{{ log.timestamp }}</td>
-    <td>{{ log.user }}</td>
-    <td>{{ log.action }}</td>
-    <td>{{ log.model_name }}</td>
-    <td>{{ log.object_id }}</td>
-    <td>{{ log.description }}</td>
-  </tr>
-  {% endfor %}
-</table>
+    <tr>
+      <th>Time</th><th>User</th><th>Action</th><th>Model</th><th>ID</th><th>Details</th>
+    </tr>
+    {% for log in logs %}
+      <tr>
+        <td>{{ log.timestamp }}</td>
+        <td>{{ log.user.username }}</td>
+        <td>{{ log.action }}</td>
+        <td>{{ log.model_name }}</td>
+        <td>{{ log.object_id }}</td>
+        <td>{{ log.description }}</td>
+      </tr>
+    {% endfor %}
+  </table>
+  
+{% endblock %}

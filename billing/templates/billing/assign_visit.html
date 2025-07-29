@@ -1,0 +1,19 @@
+<h2>Assign Patient to Doctor</h2>
+<form method="POST">
+  {% csrf_token %}
+  Patient:
+  <select name="patient">
+    {% for p in patients %}
+      <option value="{{ p.id }}">{{ p.full_name }}</option>
+    {% endfor %}
+  </select><br>
+  
+  Doctor:
+  <select name="doctor">
+    {% for d in doctors %}
+      <option value="{{ d.id }}">{{ d.username }}</option>
+    {% endfor %}
+  </select><br>
+
+  <button type="submit">Assign</button>
+</form>

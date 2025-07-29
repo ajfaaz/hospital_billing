@@ -2,6 +2,16 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth import get_user_model
 from .models import BillItem, Payment, Appointment
+from .models import Patient
+
+class PatientForm(forms.ModelForm):
+    class Meta:
+        model = Patient
+        fields = ['full_name', 'date_of_birth', 'phone_number']
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
+        }
+
 
 User = get_user_model()
 

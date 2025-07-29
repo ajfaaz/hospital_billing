@@ -4,61 +4,93 @@
 
 <h2>Dashboard Overview</h2>
 
-<div class="row">
+<div class="row g-4">
     <div class="col-md-4">
-        <div class="card text-white bg-primary mb-3">
+        <div class="card bg-primary text-white shadow-sm">
             <div class="card-body">
                 <h5 class="card-title">Patients</h5>
-                <p class="card-text">{{ patient_count }}</p>
+                <p class="card-text display-6">{{ patient_count|default:0 }}</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card text-white bg-success mb-3">
+        <div class="card bg-success text-white shadow-sm">
             <div class="card-body">
                 <h5 class="card-title">Appointments</h5>
-                <p class="card-text">{{ appointment_count }}</p>
+                <p class="card-text display-6">{{ appointment_count|default:0 }}</p>
             </div>
         </div>
     </div>
     <div class="col-md-4">
-        <div class="card text-white bg-info mb-3">
+        <div class="card bg-info text-white shadow-sm">
             <div class="card-body">
                 <h5 class="card-title">Bills</h5>
-                <p class="card-text">{{ bill_count }}</p>
+                <p class="card-text display-6">{{ bill_count|default:0 }}</p>
             </div>
         </div>
     </div>
 </div>
 
-<hr>
+<hr class="my-4">
 
 <h4>Summary Chart</h4>
-<canvas id="summaryChart" width="400" height="200"></canvas>
+<div style="max-width: 600px; margin: 0 auto;">
+    <canvas id="summaryChart" width="400" height="200"></canvas>
+</div>
+
+<!-- Load Chart.js from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-    const ctx = document.getElementById('summaryChart').getContext('2d');
-    const summaryChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['Patients', 'Appointments', 'Bills'],
-            datasets: [{
-                label: 'Count',
-                data: [{{ patient_count }}, {{ appointment_count }}, {{ bill_count }}],
-                backgroundColor: ['#0d6efd', '#198754', '#0dcaf0']
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                title: {
-                    display: true,
-                    text: 'Hospital Statistics'
+    document.addEventListener("DOMContentLoaded", function () {
+        const ctx = document.getElementById('summaryChart');
+
+        // Safely pass data from Django to JS
+        const patientCount = {{ patient_count|default:0 }};
+        const appointmentCount = {{ appointment_count|default:0 }};
+        const billCount = {{ bill_count|default:0 }};
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: ['Patients', 'Appointments', 'Bills'],
+                datasets: [{
+                    label: 'Count',
+                     [patientCount, appointmentCount, billCount],
+                    backgroundColor: [
+                        '#0d6efd',
+                        '#198754',
+                        '#0dcaf0'
+                    ],
+                    borderColor: 'rgba(255, 255, 255, 0.2)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    title: {
+                        display: true,
+                        text: 'Hospital Statistics',
+                        font: { size: 16 }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0  // No decimals
+                        }
+                    }
                 }
             }
-        }
+        });
     });
 </script>
+
 
 {% endblock %}

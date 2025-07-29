@@ -1,0 +1,8 @@
+<h2>Register Patient</h2>
+<form method="POST">
+  {% csrf_token %}
+  Name: <input type="text" name="name"><br>
+  DOB: <input type="date" name="dob"><br>
+  Phone: <input type="text" name="phone"><br>
+  <button type="submit">Register</button>
+</form>
