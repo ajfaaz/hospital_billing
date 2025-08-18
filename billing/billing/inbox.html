@@ -1,0 +1,14 @@
+{% extends "base_dashboard.html" %}
+{% block title %}Inbox{% endblock %}
+{% block content %}
+<h2>Inbox</h2>
+<ul class="list-group">
+  {% for msg in messages %}
+    <li class="list-group-item{% if not msg.is_read %} list-group-item-info{% endif %}">
+      <strong>{{ msg.subject }}</strong> from {{ msg.sender }} on {{ msg.sent_at|date:"Y-m-d H:i" }}
+    </li>
+  {% empty %}
+    <li class="list-group-item">No messages</li>
+  {% endfor %}
+</ul>
+{% endblock %}

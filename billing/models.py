@@ -345,3 +345,15 @@ class Prescription(models.Model):
     def __str__(self):
         return f"Rx for {self.visit.patient} by {self.doctor}"
 
+
+class Message(models.Model):
+    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='sent_messages')
+    receiver = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='received_messages')
+    subject = models.CharField(max_length=255)
+    content = models.TextField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+    is_read = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"From {self.sender} to {self.receiver}: {self.subject}"
+

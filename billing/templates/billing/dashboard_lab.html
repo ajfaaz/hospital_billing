@@ -2,6 +2,28 @@
 {% block title %}Lab Technician Dashboard{% endblock %}
 
 {% block content %}
-<h2>Welcome, Lab Technician {{ request.user.username }}</h2>
-<p>Here you might see pending tests, sample collections, and results to record.</p>
+<div class="container mt-4">
+    <h2 class="mb-4">Welcome, {{ user.username }}</h2>
+
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Patients</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ patient_count }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Appointments</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ appointment_count }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% include "billing/recent_messages.html" %}
+</div>
 {% endblock %}

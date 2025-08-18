@@ -1,0 +1,23 @@
+<div class="card mt-4">
+  <div class="card-header">
+      <h5>Inbox (Recent Messages)</h5>
+  </div>
+  <div class="card-body">
+      {% if user_messages %}
+          <ul class="list-group">
+              {% for message in user_messages|slice:":5" %}
+                  <li class="list-group-item">
+                      <strong>{{ message.subject }}</strong> <br>
+                      <small>{{ message.body|truncatechars:100 }}</small><br>
+                      <span class="text-muted">{{ message.timestamp|date:"M d, Y H:i" }}</span>
+                  </li>
+              {% endfor %}
+          </ul>
+          <div class="mt-2 text-end">
+              <a href="{% url 'inbox' %}" class="btn btn-sm btn-outline-primary">View All</a>
+          </div>
+      {% else %}
+          <p>No messages found.</p>
+      {% endif %}
+  </div>
+</div>

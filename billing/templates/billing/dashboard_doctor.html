@@ -1,21 +1,29 @@
-{% extends "base.html" %}
+{% extends "base_dashboard.html" %}
 {% block title %}Doctor Dashboard{% endblock %}
 
 {% block content %}
-  <h1>Welcome, Dr. {{ request.user.username }}</h1>
+<div class="container mt-4">
+    <h2 class="mb-4">Welcome, Dr. {{ user.username }}</h2>
 
-  <div class="card mt-4">
-    <div class="card-header bg-success text-white">Your Appointments</div>
-    <div class="card-body">
-      <ul class="list-group">
-        {% for appointment in request.user.appointment_set.all %}
-          <li class="list-group-item">
-            Patient: {{ appointment.patient }} - {{ appointment.date }} at {{ appointment.time }}
-          </li>
-        {% empty %}
-          <li class="list-group-item">No appointments scheduled.</li>
-        {% endfor %}
-      </ul>
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Patients</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ patient_count }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Appointments</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ appointment_count }}</h5>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
+
+    {% include "billing/recent_messages.html" %}
+</div>
 {% endblock %}

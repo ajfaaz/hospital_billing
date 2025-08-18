@@ -1,0 +1,7 @@
+{% for message in messages %}
+  From: {{ message.sender.username }} <br>
+  Subject: {{ message.subject }} <br>
+  {{ message.content }} <br>
+{% empty %}
+  <p>No messages found.</p>
+{% endfor %}

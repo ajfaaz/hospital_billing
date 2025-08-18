@@ -1,37 +1,37 @@
-{% extends 'base_dashboard.html' %}
+{% extends "base_dashboard.html" %}
 {% block title %}Admin Dashboard{% endblock %}
+
 {% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Welcome, {{ user.username }}</h2>
 
-<h2>Welcome Admin</h2>
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Total Patients</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ patient_count }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Appointments</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ appointment_count }}</h5>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Total Bills</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ bill_count }}</h5>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="card shadow-sm p-4 mt-4">
-    <h4>Monthly Income</h4>
-    <canvas id="incomeChart" width="400" height="200"></canvas>
+    {% include "billing/recent_messages.html" %}
 </div>
-
-<script>
-  const ctx = document.getElementById('incomeChart').getContext('2d');
-  const incomeChart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-          labels: {{ chart_labels|safe }},
-          datasets: [{
-              label: 'Income ($)',
-              data: {{ chart_data|safe }},
-              backgroundColor: 'rgba(54, 162, 235, 0.6)',
-              borderColor: 'rgba(54, 162, 235, 1)',
-              borderWidth: 1
-          }]
-      },
-      options: {
-          responsive: true,
-          scales: {
-              y: {
-                  beginAtZero: true
-              }
-          }
-      }
-  });
-</script>
-
 {% endblock %}

@@ -1,25 +1,37 @@
-{% extends "base.html" %}
+{% extends "base_dashboard.html" %}
 {% block title %}Receptionist Dashboard{% endblock %}
 
 {% block content %}
-  <h1>Receptionist Dashboard</h1>
+<div class="container mt-4">
+    <h2 class="mb-4">Welcome, {{ user.username }}</h2>
 
-  <div class="row">
-    <div class="col-md-6">
-      <div class="card bg-info text-white mb-3">
-        <div class="card-body">
-          <h5 class="card-title">Patients Registered</h5>
-          <p class="card-text">{{ patient_count }}</p>
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Total Patients</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ patient_count }}</h5>
+                </div>
+            </div>
         </div>
-      </div>
-    </div>
-    <div class="col-md-6">
-      <div class="card bg-secondary text-white mb-3">
-        <div class="card-body">
-          <h5 class="card-title">Appointments Scheduled</h5>
-          <p class="card-text">{{ appointment_count }}</p>
+        <div class="col-md-4">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Appointments</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ appointment_count }}</h5>
+                </div>
+            </div>
         </div>
-      </div>
+        <div class="col-md-4">
+            <div class="card text-bg-light mb-3">
+                <div class="card-header">Total Bills</div>
+                <div class="card-body">
+                    <h5 class="card-title">{{ bill_count }}</h5>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
+
+    {% include "billing/recent_messages.html" %}
+</div>
 {% endblock %}

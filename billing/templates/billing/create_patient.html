@@ -6,15 +6,22 @@
     <h2>Add New Patient</h2>
     <form method="post">
         {% csrf_token %}
-        {% for field in form %}
-  <div class="mb-3">
-    <label class="form-label">{{ field.label }}</label>
-    {{ field }}
-    {% if field.errors %}
-      <div class="text-danger small">{{ field.errors }}</div>
-    {% endif %}
-  </div>
-{% endfor %}
+
+        <div class="mb-3">
+            <label for="name" class="form-label">Full Name</label>
+            <input type="text" id="name" name="name" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="dob" class="form-label">Date of Birth</label>
+            <!-- HTML5 date input sends YYYY-MM-DD format -->
+            <input type="date" id="dob" name="dob" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label for="phone" class="form-label">Phone Number</label>
+            <input type="text" id="phone" name="phone" class="form-control">
+        </div>
 
         <button type="submit" class="btn btn-primary">Create Patient</button>
     </form>
