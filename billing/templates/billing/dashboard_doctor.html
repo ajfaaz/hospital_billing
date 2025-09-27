@@ -1,29 +1,40 @@
 {% extends "base_dashboard.html" %}
-{% block title %}Doctor Dashboard{% endblock %}
-
 {% block content %}
 <div class="container mt-4">
-    <h2 class="mb-4">Welcome, Dr. {{ user.username }}</h2>
+    <h4>Doctor Dashboard</h4>
+    <hr>
 
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card text-bg-light mb-3">
-                <div class="card-header">Patients</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ patient_count }}</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card text-bg-light mb-3">
-                <div class="card-header">Appointments</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ appointment_count }}</h5>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {% include "billing/recent_messages.html" %}
+    <h5>Patients</h5>
+    <table class="table table-striped" aria-label="Patient list for doctor dashboard">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Age</th>
+                <th>Gender</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% if patients %}
+                {% for patient in patients %}
+                <tr>
+                    <td>{{ patient.full_name }}</td>
+                    <td>{{ patient.age }}</td>
+                    <td>{{ patient.gender }}</td>
+                    <td>
+                        <a href="{% url 'patient_history' patient.id %}" class="btn btn-sm btn-info">
+                            View Medical Records
+                        </a>
+                        <a href="{% url 'add_medical_record' patient.id %}" class="btn btn-sm btn-success">
+                            Add Record
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr><td colspan="4">No patients assigned yet.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
 </div>
 {% endblock %}

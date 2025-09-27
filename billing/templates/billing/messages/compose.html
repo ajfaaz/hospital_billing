@@ -1,0 +1,22 @@
+{% extends "base_dashboard.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h4>Compose Message</h4>
+    <hr>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        <div class="mb-3">
+            {{ form.recipient.label_tag }} {{ form.recipient }}
+        </div>
+        <div class="mb-3">
+            {{ form.subject.label_tag }} {{ form.subject }}
+        </div>
+        <div class="mb-3">
+            {{ form.body.label_tag }} {{ form.body }}
+        </div>
+        <button type="submit" class="btn btn-primary">Send</button>
+        <a href="{% url 'inbox' %}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

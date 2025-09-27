@@ -1,8 +1,0 @@
-<h2>Daily Income Report</h2>
-<p>Date: {{ today }}</p>
-<p>Total Income: ₦{{ total }}</p>
-<ul>
-  {% for bill in bills %}
-    <li>{{ bill.invoice_number }} - ₦{{ bill.total }} ({{ bill.patient.name }})</li>
-  {% endfor %}
-</ul>

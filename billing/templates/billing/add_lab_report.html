@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Add Lab Report for {{ patient.full_name }}</h3>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <label>Test Name</label>
+      <input type="text" name="test_name" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Result</label>
+      <input type="text" name="result" class="form-control" required>
+    </div>
+    <div class="mb-3">
+      <label>Notes</label>
+      <textarea name="notes" class="form-control" rows="3"></textarea>
+    </div>
+    <button type="submit" class="btn btn-success">Save Report</button>
+    <a href="{% url 'patient_emr' patient.id %}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

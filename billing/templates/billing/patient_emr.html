@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Electronic Medical Record (EMR) for {{ patient.full_name }}</h2>
+
+  <!-- Medical History -->
+  <h3>Medical History</h3>
+  <a href="{% url 'add_medical_record' patient.id %}" class="btn btn-primary mb-2">Add Medical Record</a>
+  <ul class="list-group mb-4">
+    {% for record in medical_records %}
+      <li class="list-group-item">
+        <strong>{{ record.diagnosis }}</strong> - {{ record.treatment }}  
+        <br><small>{{ record.created_at|date:"M d, Y H:i" }} by Dr. {{ record.doctor.username }}</small>
+      </li>
+    {% empty %}
+      <li class="list-group-item">No medical records yet.</li>
+    {% endfor %}
+  </ul>
+
+  <!-- ✅ Lab Reports -->
+  <h3>Lab Reports</h3>
+  <a href="{% url 'add_lab_report' patient.id %}" class="btn btn-primary mb-2">Add Lab Report</a>
+  <ul class="list-group mb-4">
+    {% for report in lab_reports %}
+      <li class="list-group-item">
+        <strong>{{ report.test_name }}</strong>: {{ report.result }}  
+        <br><small>{{ report.created_at|date:"M d, Y H:i" }} by {{ report.lab_technician.username }}</small>
+      </li>
+    {% empty %}
+      <li class="list-group-item">No lab reports yet.</li>
+    {% endfor %}
+  </ul>
+
+  <!-- ✅ Radiology Reports -->
+  <h3>Radiology Reports</h3>
+  <a href="{% url 'add_radiology_report' patient.id %}" class="btn btn-primary mb-2">Add Radiology Report</a>
+  <ul class="list-group mb-4">
+    {% for report in radiology_reports %}
+      <li class="list-group-item">
+        <strong>{{ report.test_name }}</strong>: {{ report.result }}  
+        <br><small>{{ report.created_at|date:"M d, Y H:i" }} by {{ report.radiologist.username }}</small>
+      </li>
+    {% empty %}
+      <li class="list-group-item">No radiology reports yet.</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endblock %}

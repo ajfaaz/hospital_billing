@@ -10,6 +10,8 @@ urlpatterns = [
     # Patients
     path('patients/', views.patient_list, name='patient_list'),
     path('patients/add/', views.create_patient, name='create_patient'),
+    # ✅ use only the correct medical-record route
+    path('patients/<int:patient_id>/history/add/', views.add_medical_record, name='add_medical_record'),
 
     # Appointments
     path('appointments/', views.appointment_list, name='appointment_list'),
@@ -26,10 +28,14 @@ urlpatterns = [
     path('audit-logs/', views.audit_logs, name='audit_logs'),
 
     # Messaging
-    path('messages/inbox/', views.inbox, name='inbox'),
-    path('messages/sent/', views.sent_messages, name='sent_messages'),
-    path('messages/send/', views.send_message, name='send_message'),
+    path("messages/inbox/", views.inbox, name="inbox"),
+    path("messages/sent/", views.sent_messages, name="sent_messages"),
+    path("messages/compose/", views.compose_message, name="compose_message"),
+    path("messages/<int:pk>/", views.message_detail, name="message_detail"),
+    path("conversation/<int:sender_id>/",views.conversation,name="conversation"),
 
+
+    
     # Role Dashboards
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('doctor-dashboard/', views.doctor_dashboard, name='doctor_dashboard'),
@@ -41,4 +47,12 @@ urlpatterns = [
 
     # Registration
     path('register/', views.register, name='register'),
+
+    # Medical Records
+    path('patients/<int:patient_id>/history/', views.patient_history, name='patient_history'),
+    path('patients/<int:patient_id>/emr/', views.patient_emr, name='patient_emr'),
+    path('patients/<int:patient_id>/lab/add/', views.add_lab_report, name='add_lab_report'),
+    path('patients/<int:patient_id>/radiology/add/', views.add_radiology_report, name='add_radiology_report'),
+
 ]
+

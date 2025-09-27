@@ -1,0 +1,21 @@
+{% extends "base_dashboard.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h4>Conversation with {{ sender.username }}</h4>
+  <div class="border p-3 mb-3" style="max-height:60vh;overflow-y:auto;">
+    {% for m in messages %}
+      <p>
+        <strong>{{ m.sender.username }}:</strong>
+        {{ m.body }} <small class="text-muted">({{ m.created_at|date:"M d H:i" }})</small>
+      </p>
+    {% endfor %}
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      <textarea name="body" rows="3" class="form-control" placeholder="Write a reply…"></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary">Send Reply</button>
+  </form>
+</div>
+{% endblock %}

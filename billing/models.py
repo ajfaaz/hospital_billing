@@ -6,6 +6,7 @@ from django.conf import settings
 import uuid
 
 
+
 class Hospital(models.Model):
     """
     Represents a hospital (or clinic) that owns this instance.
@@ -77,7 +78,8 @@ class Patient(models.Model):
     hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
     full_name = models.CharField(max_length=100)
     date_of_birth = models.DateField()
-    phone_number = models.CharField(max_length=15)
+    phone_number = models.CharField(max_length=20)
+    address = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -85,6 +87,7 @@ class Patient(models.Model):
 
     class Meta:
         ordering = ['full_name']
+
 
 
 class Service(models.Model):
@@ -344,16 +347,45 @@ class Prescription(models.Model):
 
     def __str__(self):
         return f"Rx for {self.visit.patient} by {self.doctor}"
+        
 
+from billing.models import Medicine  # or wherever your Medicine model lives
 
-class Message(models.Model):
-    sender = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='sent_messages')
-    receiver = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='received_messages')
-    subject = models.CharField(max_length=255)
-    content = models.TextField()
-    sent_at = models.DateTimeField(auto_now_add=True)
-    is_read = models.BooleanField(default=False)
+class MedicalRecord(models.Model):
+    patient = models.ForeignKey(
+        Patient, on_delete=models.CASCADE, related_name="medical_history"
+    )
+    doctor = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE
+    )
+    diagnosis = models.TextField()
+    treatment = models.TextField()
+    notes = models.TextField(blank=True, null=True)
+    prescribed_medicines = models.ManyToManyField(
+        Medicine, blank=True, related_name="medical_records"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"From {self.sender} to {self.receiver}: {self.subject}"
+        return f"{self.patient.full_name} - {self.diagnosis[:30]}"
 
+
+class LabReport(models.Model):
+    patient = models.ForeignKey("Patient", on_delete=models.CASCADE, related_name="lab_reports")
+    lab_technician = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    test_name = models.CharField(max_length=200)
+    result = models.TextField()
+    date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.test_name} - {self.patient.full_name}"
+
+class RadiologyReport(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    scan_type = models.CharField(max_length=100)
+    report = models.TextField()   # maybe called 'report' instead of 'finding'
+    created_at = models.DateTimeField(auto_now_add=True)
+    radiologist = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f"Radiology Report: {self.scan_type} for {self.patient.name}"

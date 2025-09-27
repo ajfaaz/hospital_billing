@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h2>Add Medical Record for {{ patient.full_name }}</h2>
+
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">Save</button>
+    <a href="{% url 'patient_history' patient.id %}" class="btn btn-secondary">Cancel</a>
+  </form>
+</div>
+{% endblock %}

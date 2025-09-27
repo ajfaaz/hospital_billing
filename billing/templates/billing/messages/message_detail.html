@@ -1,0 +1,12 @@
+{% extends "base_dashboard.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h4>{{ message.subject }}</h4>
+  <p><strong>From:</strong> {{ message.sender.username }}</p>
+  <p><strong>To:</strong> {{ message.recipient.username }}</p>
+  <p><strong>Date:</strong> {{ message.created_at|date:"M d, Y H:i" }}</p>
+  <hr>
+  <p>{{ message.body|linebreaks }}</p>
+  <a href="{% url 'conversation' message.sender.id %}" class="btn btn-primary">Reply</a>
+</div>
+{% endblock %}

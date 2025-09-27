@@ -1,0 +1,24 @@
+{% extends "base_dashboard.html" %}
+{% block content %}
+<div class="container mt-4">
+  <div class="mb-3">
+    <a href="{% url 'compose_message' %}" class="btn btn-primary">Compose</a>
+    <a href="{% url 'sent_messages' %}" class="btn btn-secondary">Sent</a>
+  </div>
+
+  <h3 class="mb-4">📨 Inbox</h3>
+  {% if messages %}
+    <div class="list-group">
+      {% for msg in messages %}
+        <a href="{% url 'message_detail' msg.id %}"
+           class="list-group-item list-group-item-action {% if not msg.is_read %}fw-bold{% endif %}">
+            <strong>{{ msg.sender.username }}</strong>: {{ msg.subject }}
+            <small class="text-muted float-end">{{ msg.created_at|date:"M d, H:i" }}</small>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-muted">No messages yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

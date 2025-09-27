@@ -18,6 +18,8 @@ ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost").split(",")
 # APPLICATIONS
 INSTALLED_APPS = [
     'billing',
+    'channels',
+    'messaging',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -25,6 +27,16 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 ]
+
+
+ASGI_APPLICATION = "hospital_billing.asgi.application"
+
+# For now we’ll use in-memory channel layer (sufficient for dev)
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
 
 # MIDDLEWARE
 MIDDLEWARE = [
@@ -54,6 +66,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                "billing.context_processors.unread_messages",  
             ],
         },
     },

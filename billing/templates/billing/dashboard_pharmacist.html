@@ -1,29 +1,29 @@
-{% extends "base_dashboard.html" %}
-{% block title %}Pharmacist Dashboard{% endblock %}
-
+{% extends "base.html" %}
 {% block content %}
-<div class="container mt-4">
-    <h2 class="mb-4">Welcome, {{ user.username }}</h2>
+<div class="container-fluid">
+  <div class="row">
+    <!-- Sidebar -->
+    <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+      <div class="sidebar-sticky">
+        <ul class="nav flex-column">
+          <li class="nav-item"><a class="nav-link" href="{% url 'pharmacy_dashboard' %}">🏠 Home</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'inbox' %}">📥 Inbox {% if unread_count > 0 %}<span class="badge badge-danger">{{ unread_count }}</span>{% endif %}</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'compose_message' %}">✉️ Compose</a></li>
 
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="card text-bg-light mb-3">
-                <div class="card-header">Patients</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ patient_count }}</h5>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card text-bg-light mb-3">
-                <div class="card-header">Bills</div>
-                <div class="card-body">
-                    <h5 class="card-title">{{ bill_count }}</h5>
-                </div>
-            </div>
-        </div>
-    </div>
+          <hr>
+          <li class="nav-item"><strong>Messages</strong></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'inbox' %}">📥 Inbox</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'sent_messages' %}">📤 Sent</a></li>
+          <li class="nav-item"><a class="nav-link" href="{% url 'compose_message' %}">✉️ Compose</a></li>
+        </ul>
+      </div>
+    </nav>
 
-    {% include "billing/recent_messages.html" %}
+    <!-- Main content -->
+    <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
+      <h2>Pharmacy Dashboard</h2>
+      <p>Welcome {{ user.full_name }}! Manage inventory, sales, and send/receive messages here.</p>
+    </main>
+  </div>
 </div>
 {% endblock %}
