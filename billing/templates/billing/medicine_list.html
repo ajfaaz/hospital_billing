@@ -1,0 +1,34 @@
+{% extends 'base_dashboard.html' %}
+{% block content %}
+<div class="container mt-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h3 class="mb-0">Medicine Inventory</h3>
+    <a href="{% url 'add_medicine' %}" class="btn btn-primary btn-sm">Add Medicine</a>
+  </div>
+
+  {% if medicines %}
+  <table class="table table-striped">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Category</th>
+        <th>Stock</th>
+        <th>Price</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for med in medicines %}
+      <tr>
+        <td>{{ med.name }}</td>
+        <td>{{ med.category }}</td>
+        <td>{{ m.quantity }}</td>
+        <td>{{ med.price }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No medicines available.</p>
+  {% endif %}
+</div>
+{% endblock %}

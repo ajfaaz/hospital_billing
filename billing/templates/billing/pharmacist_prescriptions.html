@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Pharmacist - Prescriptions{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3 class="mb-3"><i class="bi bi-prescription2"></i> Pending Prescriptions</h3>
+
+  {% if prescriptions %}
+  <table class="table table-bordered table-hover">
+    <thead class="table-dark">
+      <tr>
+        <th>Patient</th>
+        <th>Doctor</th>
+        <th>Medicines</th>
+        <th>Issued At</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for rx in prescriptions %}
+      <tr>
+        <td>{{ rx.visit.patient.full_name }}</td>
+        <td>{{ rx.doctor.get_full_name }}</td>
+        <td><pre>{{ rx.medicines }}</pre></td>
+        <td>{{ rx.issued_at|date:"M d, Y H:i" }}</td>
+        <td>
+          <a href="{% url 'dispense_prescription' rx.id %}" class="btn btn-success btn-sm">
+            <i class="bi bi-check-circle"></i> Dispense
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert alert-info">No pending prescriptions found.</div>
+  {% endif %}
+</div>
+{% endblock %}

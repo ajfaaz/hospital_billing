@@ -318,6 +318,8 @@ class RadiologyRequest(models.Model):
         return f"{self.imaging_type} - {self.status}"
 
 
+# billing/models.py
+
 class Prescription(models.Model):
     hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
     visit = models.ForeignKey(PatientVisit, on_delete=models.CASCADE)
@@ -336,7 +338,12 @@ class Prescription(models.Model):
         related_name='prescriptions_filled',
         limit_choices_to={'role': 'pharmacist'}
     )
-    medicines = models.TextField(help_text="Format: Drug name - dosage - duration")
+
+    medicines = models.TextField()  # allows multiple medicines, one per line
+    dosage = models.CharField(max_length=100, default="N/A")            # ✅ default added
+    duration = models.CharField(max_length=100, default="N/A")          # ✅ default added
+    instructions = models.TextField(default="No special instructions")  # ✅ default added
+
     status = models.CharField(
         max_length=20,
         choices=[('issued', 'Issued'), ('dispensed', 'Dispensed')],
@@ -347,7 +354,7 @@ class Prescription(models.Model):
 
     def __str__(self):
         return f"Rx for {self.visit.patient} by {self.doctor}"
-        
+
 
 from billing.models import Medicine  # or wherever your Medicine model lives
 

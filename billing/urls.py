@@ -10,8 +10,11 @@ urlpatterns = [
     # Patients
     path('patients/', views.patient_list, name='patient_list'),
     path('patients/add/', views.create_patient, name='create_patient'),
-    # ✅ use only the correct medical-record route
     path('patients/<int:patient_id>/history/add/', views.add_medical_record, name='add_medical_record'),
+    path('patients/<int:patient_id>/history/', views.patient_history, name='patient_history'),
+    path('patients/<int:patient_id>/emr/', views.patient_emr, name='patient_emr'),
+    path('patients/<int:patient_id>/lab/add/', views.add_lab_report, name='add_lab_report'),
+    path('patients/<int:patient_id>/radiology/add/', views.add_radiology_report, name='add_radiology_report'),
 
     # Appointments
     path('appointments/', views.appointment_list, name='appointment_list'),
@@ -32,10 +35,8 @@ urlpatterns = [
     path("messages/sent/", views.sent_messages, name="sent_messages"),
     path("messages/compose/", views.compose_message, name="compose_message"),
     path("messages/<int:pk>/", views.message_detail, name="message_detail"),
-    path("conversation/<int:sender_id>/",views.conversation,name="conversation"),
+    path("conversation/<int:sender_id>/", views.conversation, name="conversation"),
 
-
-    
     # Role Dashboards
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('doctor-dashboard/', views.doctor_dashboard, name='doctor_dashboard'),
@@ -43,16 +44,31 @@ urlpatterns = [
     path('accountant-dashboard/', views.accountant_dashboard, name='accountant_dashboard'),
     path('radiologist-dashboard/', views.radiologist_dashboard, name='radiologist_dashboard'),
     path('lab-dashboard/', views.lab_dashboard, name='lab_dashboard'),
-    path('pharmacist-dashboard/', views.pharmacist_dashboard, name='pharmacist_dashboard'),
+    path("pharmacist/dashboard/", views.pharmacist_dashboard, name="pharmacist_dashboard"),
 
     # Registration
     path('register/', views.register, name='register'),
 
-    # Medical Records
-    path('patients/<int:patient_id>/history/', views.patient_history, name='patient_history'),
-    path('patients/<int:patient_id>/emr/', views.patient_emr, name='patient_emr'),
-    path('patients/<int:patient_id>/lab/add/', views.add_lab_report, name='add_lab_report'),
-    path('patients/<int:patient_id>/radiology/add/', views.add_radiology_report, name='add_radiology_report'),
+    # Prescriptions
+    path("patients/<int:patient_id>/prescription/add/", views.add_prescription, name="add_prescription"),
+    path("prescriptions/pending/", views.pending_prescriptions, name="pending_prescriptions"),
+    path("pharmacist/medicines/add/", views.add_medicine, name="add_medicine"),
 
+
+    # ✅ Pharmacist-specific routes
+    path(
+        "pharmacist/prescriptions/",
+        views.pharmacist_prescriptions,
+        name="pharmacist_prescriptions"
+    ),
+    path(
+        "pharmacist/prescriptions/<int:prescription_id>/dispense/",
+        views.dispense_prescription,
+        name="pharmacist_dispense_prescription"
+    ),
+    path(
+        "pharmacist/medicines/",
+        views.medicine_list,
+        name="medicine_list"
+    ),
 ]
-

@@ -1,48 +1,74 @@
 {% extends "base.html" %}
+{% load static %}
+
 {% block content %}
 <div class="container mt-4">
-  <h2>Electronic Medical Record (EMR) for {{ patient.full_name }}</h2>
+  <h3>Electronic Medical Record (EMR) for {{ patient.full_name }}</h3>
 
-  <!-- Medical History -->
-  <h3>Medical History</h3>
-  <a href="{% url 'add_medical_record' patient.id %}" class="btn btn-primary mb-2">Add Medical Record</a>
-  <ul class="list-group mb-4">
-    {% for record in medical_records %}
-      <li class="list-group-item">
-        <strong>{{ record.diagnosis }}</strong> - {{ record.treatment }}  
-        <br><small>{{ record.created_at|date:"M d, Y H:i" }} by Dr. {{ record.doctor.username }}</small>
-      </li>
-    {% empty %}
-      <li class="list-group-item">No medical records yet.</li>
-    {% endfor %}
-  </ul>
+  <!-- ========== Medical History ========== -->
+  <h4 class="mt-4">Medical History</h4>
+  {% if user.role == "doctor" %}
+  <a href="{% url 'add_medical_record' patient.id %}" class="btn btn-primary mb-3">+ Add Medical Record</a>
+  {% endif %}
+  {% for record in medical_records %}
+  <div class="card mb-2 p-3">
+    <strong>{{ record.diagnosis }}</strong> — {{ record.treatment }}
+    <small class="text-muted d-block">By Dr. {{ record.doctor.username }} | {{ record.created_at|date:"M d, Y H:i" }}</small>
+  </div>
+  {% empty %}
+  <div class="alert alert-info">No medical records found.</div>
+  {% endfor %}
 
-  <!-- ✅ Lab Reports -->
-  <h3>Lab Reports</h3>
-  <a href="{% url 'add_lab_report' patient.id %}" class="btn btn-primary mb-2">Add Lab Report</a>
-  <ul class="list-group mb-4">
-    {% for report in lab_reports %}
-      <li class="list-group-item">
-        <strong>{{ report.test_name }}</strong>: {{ report.result }}  
-        <br><small>{{ report.created_at|date:"M d, Y H:i" }} by {{ report.lab_technician.username }}</small>
-      </li>
-    {% empty %}
-      <li class="list-group-item">No lab reports yet.</li>
-    {% endfor %}
-  </ul>
+  <!-- ========== Lab Reports ========== -->
+  <h4 class="mt-5">Lab Reports</h4>
+  {% if user.role == "lab_technician" %}
+  <a href="{% url 'add_lab_report' patient.id %}" class="btn btn-primary mb-3">+ Add Lab Report</a>
+  {% endif %}
+  {% for report in lab_reports %}
+  <div class="card mb-2 p-3">
+    <strong>{{ report.test_name }}:</strong> {{ report.result }}
+    <small class="text-muted d-block">By {{ report.lab_technician.username }} | {{ report.date|date:"M d, Y" }}</small>
+  </div>
+  {% empty %}
+  <div class="alert alert-info">No lab reports available.</div>
+  {% endfor %}
 
-  <!-- ✅ Radiology Reports -->
-  <h3>Radiology Reports</h3>
-  <a href="{% url 'add_radiology_report' patient.id %}" class="btn btn-primary mb-2">Add Radiology Report</a>
-  <ul class="list-group mb-4">
-    {% for report in radiology_reports %}
-      <li class="list-group-item">
-        <strong>{{ report.test_name }}</strong>: {{ report.result }}  
-        <br><small>{{ report.created_at|date:"M d, Y H:i" }} by {{ report.radiologist.username }}</small>
-      </li>
-    {% empty %}
-      <li class="list-group-item">No radiology reports yet.</li>
-    {% endfor %}
-  </ul>
+  <!-- ========== Radiology Reports ========== -->
+  <h4 class="mt-5">Radiology Reports</h4>
+  {% if user.role == "radiologist" %}
+  <a href="{% url 'add_radiology_report' patient.id %}" class="btn btn-primary mb-3">+ Add Radiology Report</a>
+  {% endif %}
+  {% for report in radiology_reports %}
+  <div class="card mb-2 p-3">
+    <strong>{{ report.test_type }}</strong> — {{ report.findings }}
+    <small class="text-muted d-block">By {{ report.radiologist.username }} | {{ report.created_at|date:"M d, Y" }}</small>
+  </div>
+  {% empty %}
+  <div class="alert alert-info">No radiology reports available.</div>
+  {% endfor %}
+
+  <!-- ========== Prescriptions ========== -->
+  <h4 class="mt-5">Prescriptions</h4>
+  {% if user.role == "doctor" %}
+  <a href="{% url 'add_prescription' patient.id %}" class="btn btn-primary btn-sm">Add Prescription</a>
+    <i class="bi bi-file-medical"></i> Add Prescription
+  </a>
+  {% endif %}
+  {% for prescription in patient.visits.last.prescription_set.all %}
+  <div class="card mb-2 p-3">
+    <strong>{{ prescription.medicines }}</strong> — {{ prescription.dosage }}
+    <small class="text-muted d-block">
+      Issued by Dr. {{ prescription.doctor.username }} | {{ prescription.issued_at|date:"M d, Y H:i" }} |
+      Status: 
+      {% if prescription.status == 'dispensed' %}
+        <span class="badge bg-success">Dispensed</span>
+      {% else %}
+        <span class="badge bg-warning text-dark">Issued</span>
+      {% endif %}
+    </small>
+  </div>
+  {% empty %}
+  <div class="alert alert-info">No prescriptions yet.</div>
+  {% endfor %}
 </div>
 {% endblock %}

@@ -1,0 +1,41 @@
+{% extends 'billing/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+  <h3 class="mb-4">Pending Prescriptions</h3>
+
+  {% if prescriptions %}
+  <table class="table table-striped table-hover">
+    <thead class="table-dark">
+      <tr>
+        <th>Patient</th>
+        <th>Medicine</th>
+        <th>Dosage</th>
+        <th>Doctor</th>
+        <th>Date Issued</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for prescription in prescriptions %}
+      <tr>
+        <td>{{ prescription.visit.patient.full_name }}</td>
+        <td>{{ prescription.medicine.name }}</td>
+        <td>{{ prescription.dosage }}</td>
+        <td>Dr. {{ prescription.doctor.username }}</td>
+        <td>{{ prescription.issued_at|date:"M d, Y H:i" }}</td>
+        <td>
+          <a href="{% url 'dispense_prescription' prescription.id %}" class="btn btn-success btn-sm">
+            <i class="bi bi-check2-circle"></i> Dispense
+          </a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="alert alert-info">No pending prescriptions at the moment.</div>
+  {% endif %}
+</div>
+{% endblock %}

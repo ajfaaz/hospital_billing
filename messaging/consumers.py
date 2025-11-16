@@ -1,4 +1,7 @@
 # messaging/consumers.py
+from channels.generic.websocket import AsyncWebsocketConsumer
+import json
+
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.group = f"user_{self.scope['user'].id}"

@@ -35,6 +35,7 @@
             align-items: center;
             justify-content: space-between;
             text-decoration: none;
+            font-size: 15px;
         }
         .sidebar a:hover {
             background-color: #495057;
@@ -47,43 +48,15 @@
             font-size: 0.75rem;
         }
     </style>
+
+    {% block head_scripts %}{% endblock %}
 </head>
 <body>
-
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-
-<!-- jQuery (required by Select2) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<!-- Select2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
-<!-- ✅ WebSocket for real-time notifications -->
-<script>
-    (function() {
-        const proto = window.location.protocol === "https:" ? "wss" : "ws";
-        const nSocket = new WebSocket(`${proto}://${window.location.host}/ws/notifications/`);
-
-        nSocket.onmessage = function(e) {
-            const data = JSON.parse(e.data);
-            if (data.type === "new_message") {
-                document.querySelectorAll("[data-unread-badge]").forEach(badge => {
-                    badge.textContent = data.count;
-                    badge.style.display = data.count > 0 ? 'inline' : 'none';
-                });
-            }
-        };
-    })();
-</script>
-
-
-
 
 <!-- Navbar -->
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
     <div class="container-fluid">
-        <a class="navbar-brand" href="#">Hospital Billing</a>
+        <a class="navbar-brand fw-bold" href="#">🏥 Hospital Billing</a>
 
         <div class="d-flex align-items-center">
             <!-- Messages link -->
@@ -92,20 +65,16 @@
                 {% if unread_count > 0 %}
                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" data-unread-badge>
                         {{ unread_count }}
-                        <span class="visually-hidden">unread messages</span>
                     </span>
                 {% else %}
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" data-unread-badge style="display:none;">
-                        0
-                        <span class="visually-hidden">unread messages</span>
-                    </span>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" data-unread-badge style="display:none;">0</span>
                 {% endif %}
             </a>
 
-            <!-- Logout button -->
-            <form method="post" action="{% url 'logout' %}" style="display: inline;">
+            <!-- Logout -->
+            <form method="post" action="{% url 'logout' %}" class="d-inline">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-link text-white p-0" style="text-decoration: none;">
+                <button type="submit" class="btn btn-link text-white text-decoration-none">
                     <i class="bi bi-box-arrow-right"></i> Logout
                 </button>
             </form>
@@ -115,42 +84,51 @@
 
 <!-- Sidebar -->
 <div class="sidebar">
-    <a href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
-    <a href="{% url 'patient_list' %}"><i class="bi bi-people me-2"></i> Patients</a>
-    <a href="{% url 'appointment_list' %}"><i class="bi bi-calendar-check me-2"></i> Appointments</a>
-
-    <!-- Messages with unread badge -->
-    <a href="{% url 'inbox' %}">
-        <i class="bi bi-envelope"></i> Inbox
-        {% if unread_count > 0 %}
-            <span class="badge bg-danger ms-2" data-unread-badge>{{ unread_count }}</span>
-        {% else %}
-            <span class="badge bg-danger ms-2" data-unread-badge style="display:none;">0</span>
-        {% endif %}
-    </a>
-
-    <a href="{% url 'audit_logs' %}"><i class="bi bi-clipboard-data me-2"></i> Audit Logs</a>
+    {% block sidebar %}
+        <a href="{% url 'dashboard' %}"><i class="bi bi-speedometer2 me-2"></i> Dashboard</a>
+        <a href="{% url 'patient_list' %}"><i class="bi bi-people me-2"></i> Patients</a>
+        <a href="{% url 'appointment_list' %}"><i class="bi bi-calendar-check me-2"></i> Appointments</a>
+        <a href="{% url 'inbox' %}"><i class="bi bi-envelope me-2"></i> Inbox</a>
+        <a href="{% url 'audit_logs' %}"><i class="bi bi-clipboard-data me-2"></i> Audit Logs</a>
+    {% endblock %}
 </div>
 
 <!-- Django Messages -->
 {% if messages %}
   {% for message in messages %}
-    <div class="alert alert-success alert-dismissible fade show" role="alert">
+    <div class="alert alert-{{ message.tags }} alert-dismissible fade show m-3" role="alert" style="margin-left:260px;">
         {{ message }}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
   {% endfor %}
 {% endif %}
 
 <!-- Main Content -->
 <div class="content">
-    {% block content %}
-    <!-- Page content goes here -->
-    {% endblock %}
+    {% block content %}{% endblock %}
 </div>
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+<!-- Optional: WebSocket for real-time message count -->
+<script>
+(function() {
+    const proto = window.location.protocol === "https:" ? "wss" : "ws";
+    const nSocket = new WebSocket(`${proto}://${window.location.host}/ws/notifications/`);
+
+    nSocket.onmessage = function(e) {
+        const data = JSON.parse(e.data);
+        if (data.type === "new_message") {
+            document.querySelectorAll("[data-unread-badge]").forEach(badge => {
+                badge.textContent = data.count;
+                badge.style.display = data.count > 0 ? 'inline' : 'none';
+            });
+        }
+    };
+})();
+</script>
+
+{% block scripts %}{% endblock %}
 </body>
 </html>

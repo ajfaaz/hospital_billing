@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dispense Prescription{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h3 class="mb-4 text-primary">
+        Prescription for {{ prescription.visit.patient.full_name }}
+    </h3>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <p><strong>Doctor:</strong> {{ prescription.doctor.get_full_name }}</p>
+            <p><strong>Date Issued:</strong> {{ prescription.issued_at|date:"M d, Y - H:i" }}</p>
+            <p><strong>Status:</strong>
+                {% if prescription.status == "dispensed" %}
+                    <span class="badge bg-success">Dispensed</span>
+                {% else %}
+                    <span class="badge bg-warning text-dark">Pending</span>
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="bi bi-prescription2"></i> Medicines</h5>
+        </div>
+        <div class="card-body">
+            {% if prescription.medicine %}
+                <ul class="list-group list-group-flush">
+                    {% for line in prescription.medicine.splitlines %}
+                        {% if line.strip %}
+                            <li class="list-group-item">
+                                <i class="bi bi-capsule me-2 text-primary"></i>
+                                {{ line }}
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="text-muted fst-italic">No medicine information available.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <p><strong>Dosage:</strong> {{ prescription.dosage }}</p>
+            <p><strong>Duration:</strong> {{ prescription.duration }}</p>
+            <p><strong>Instructions:</strong> {{ prescription.instructions }}</p>
+        </div>
+    </div>
+
+    {% if prescription.status != "dispensed" %}
+    <form method="POST" class="mt-4">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-success">
+            <i class="bi bi-check2-circle"></i> Mark as Dispensed
+        </button>
+        <a href="{% url 'pharmacist_prescriptions' %}" class="btn btn-secondary">Back</a>
+    </form>
+    {% else %}
+    <a href="{% url 'pharmacist_prescriptions' %}" class="btn btn-secondary">Back to Prescriptions</a>
+    {% endif %}
+</div>
+{% endblock %}

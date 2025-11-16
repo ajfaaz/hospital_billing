@@ -44,31 +44,46 @@ User = get_user_model()
 # =======================================================
 # DASHBOARD
 # =======================================================
+from django.db.models import Sum
+from django.db.models.functions import TruncMonth
+from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
 
 @login_required
 def dashboard(request):
     user = request.user
+
+    # Handle hospital-bound data (some roles may not have hospital field)
+    hospital_filter = {}
+    if hasattr(user, 'hospital') and user.hospital:
+        hospital_filter = {"hospital": user.hospital}
+
+    # Income trend (monthly totals)
     income_by_month = (
         Payment.objects.annotate(month=TruncMonth("paid_on"))
         .values("month")
         .annotate(total=Sum("amount_paid"))
         .order_by("month")
     )
+
     labels = [entry["month"].strftime("%b %Y") for entry in income_by_month]
     data = [entry["total"] for entry in income_by_month]
 
+    # Unread messages
     unread_count = Message.objects.filter(recipient=user, is_read=False).count()
 
+    # Dashboard stats
     context = {
         "chart_labels": labels,
         "chart_data": data,
-        "patient_count": Patient.objects.filter(hospital=user.hospital).count(),
-        "appointment_count": Appointment.objects.filter(hospital=user.hospital).count(),
-        "bill_count": Bill.objects.filter(hospital=user.hospital).count(),
+        "patient_count": Patient.objects.filter(**hospital_filter).count(),
+        "appointment_count": Appointment.objects.filter(**hospital_filter).count(),
+        "bill_count": Bill.objects.filter(**hospital_filter).count(),
         "total_income": Payment.objects.aggregate(total=Sum("amount_paid"))["total"] or 0,
         "unread_count": unread_count,
     }
 
+    # Map user roles to their dashboards
     template_map = {
         "admin": "billing/dashboard_admin.html",
         "doctor": "billing/dashboard_doctor.html",
@@ -76,11 +91,12 @@ def dashboard(request):
         "accountant": "billing/dashboard_accountant.html",
         "radiologist": "billing/dashboard_radiologist.html",
         "lab_technician": "billing/dashboard_lab.html",
-        "pharmacist": "billing/dashboard_pharmacist.html",
+        "pharmacist": "billing/pharmacist_dashboard.html",
     }
+
+    # Default to a simple dashboard if role is missing
     template = template_map.get(user.role, "billing/dashboard.html")
     return render(request, template, context)
-
 
 # =======================================================
 # HOME & ROLE REDIRECT
@@ -474,9 +490,12 @@ def patient_history(request, patient_id):
 @login_required
 def patient_emr(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
+
     medical_records = MedicalRecord.objects.filter(patient=patient).order_by("-created_at")
     lab_reports = LabReport.objects.filter(patient=patient).order_by("-date")
     radiology_reports = RadiologyReport.objects.filter(patient=patient).order_by("-created_at")
+    prescriptions = Prescription.objects.filter(visit__patient=patient).select_related("doctor").order_by("-issued_at")
+
     return render(
         request,
         "billing/patient_emr.html",
@@ -485,8 +504,10 @@ def patient_emr(request, patient_id):
             "medical_records": medical_records,
             "lab_reports": lab_reports,
             "radiology_reports": radiology_reports,
+            "prescriptions": prescriptions,
         },
     )
+
 
 
 @login_required
@@ -527,6 +548,46 @@ def add_radiology_report(request, patient_id):
         "billing/add_radiology_report.html",
         {"form": form, "patient": patient, "past_reports": past_reports},
     )
+
+@login_required
+def create_prescription(request, visit_id):
+    visit = get_object_or_404(PatientVisit, id=visit_id)
+
+    if request.method == "POST":
+        form = PrescriptionForm(request.POST)
+        if form.is_valid():
+            prescription = form.save(commit=False)
+            prescription.hospital = visit.hospital
+            prescription.doctor = request.user
+            prescription.visit = visit
+            prescription.save()
+            messages.success(request, "Prescription created successfully.")
+            return redirect("patient_emr", patient_id=visit.patient.id)
+    else:
+        form = PrescriptionForm(initial={"visit": visit, "doctor": request.user})
+
+    return render(request, "billing/prescriptions/create_prescription.html", {"form": form, "visit": visit})
+
+@login_required
+def pending_prescriptions(request):
+    prescriptions = Prescription.objects.filter(status="issued").select_related("doctor", "visit__patient")
+    return render(request, "billing/prescriptions/pending_prescriptions.html", {"prescriptions": prescriptions})
+
+
+@login_required
+def dispense_prescription(request, prescription_id):
+    prescription = get_object_or_404(Prescription, id=prescription_id)
+
+    if prescription.status == "issued":
+        prescription.status = "dispensed"
+        prescription.dispensed_at = timezone.now()
+        prescription.save()
+        messages.success(request, "Prescription marked as dispensed.")
+    else:
+        messages.warning(request, "This prescription was already dispensed.")
+
+    return redirect("pending_prescriptions")
+
 
 
 # =======================================================
@@ -579,4 +640,158 @@ def lab_dashboard(request):
 
 @login_required
 def pharmacist_dashboard(request):
-    return render(request, "billing/dashboard_pharmacist.html")
+    prescriptions = Prescription.objects.filter(status='issued').order_by('-issued_at')
+
+    print("Pharmacist Dashboard → Found prescriptions:", prescriptions.count())  # debug log
+    for p in prescriptions:
+        print(f"→ {p.id}: {p.medicines} ({p.status})")
+
+    context = {
+        "prescriptions": prescriptions,
+    }
+    return render(request, "billing/pharmacist_dashboard.html", context)
+
+
+# =======================================================
+# Prescription and Dispenses
+# =======================================================
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
+from .models import Patient, Prescription, Medicine
+from .forms import PrescriptionForm
+
+# Doctor adds a prescription
+@login_required
+def add_prescription(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+    visit = PatientVisit.objects.filter(patient=patient).last()
+
+    if request.method == "POST":
+        form = PrescriptionForm(request.POST)
+        if form.is_valid():
+            prescription = form.save(commit=False)
+            prescription.visit = visit
+            prescription.doctor = request.user
+            prescription.hospital = request.user.hospital  # ✅ ensures link
+            prescription.save()
+
+            messages.success(request, "Prescription saved successfully!")
+            return redirect("patient_emr", patient_id=patient.id)
+    else:
+        form = PrescriptionForm()
+
+    return render(
+        request,
+        "billing/add_prescription.html",
+        {"form": form, "patient": patient},
+    )
+
+# Pharmacist sees pending prescriptions
+@login_required
+def pending_prescriptions(request):
+    prescriptions = Prescription.objects.filter(status="issued").select_related(
+        "visit__patient", "doctor", "medicine"
+    )
+    return render(request, "billing/prescriptions/pending_prescriptions.html", {"prescriptions": prescriptions})
+
+
+# Pharmacist marks as dispensed (reduces stock)
+from django.utils import timezone
+from django.contrib import messages
+from django.shortcuts import get_object_or_404, redirect
+from .models import Prescription
+
+@login_required
+def dispense_prescription(request, prescription_id):
+    prescription = get_object_or_404(Prescription, id=prescription_id)
+
+    # Only pharmacist can dispense
+    if request.user.role != "pharmacist":
+        return HttpResponse("Unauthorized", status=403)
+
+    prescription.status = "dispensed"
+    prescription.pharmacist = request.user
+    prescription.dispensed_at = timezone.now()
+    prescription.save()
+
+    messages.success(request, "Prescription dispensed successfully.")
+    return redirect("pharmacist_dashboard")
+
+
+@login_required
+def medicine_list(request):
+    if request.user.role != "pharmacist":
+        messages.error(request, "Only pharmacists can view this page.")
+        return redirect("dashboard")
+
+    medicines = Medicine.objects.all()
+    return render(request, "billing/medicine_list.html", {"medicines": medicines})
+
+
+# =======================================================
+# PHARMACIST PRESCRIPTION MANAGEMENT
+# =======================================================
+
+@login_required
+def pharmacist_prescriptions(request):
+    # Only pharmacists should access this page
+    if request.user.role != "pharmacist":
+        messages.error(request, "Access denied.")
+        return redirect("dashboard")
+
+    prescriptions = Prescription.objects.filter(status="issued").select_related("visit__patient", "doctor")
+    return render(request, "billing/pharmacist_prescriptions.html", {"prescriptions": prescriptions})
+
+@login_required
+def pharmacist_dispense_prescription(request, prescription_id):
+    prescription = get_object_or_404(Prescription, pk=prescription_id)
+
+    if request.user.role != "pharmacist":
+        messages.error(request, "Unauthorized access.")
+        return redirect("dashboard")
+
+    prescription.status = "dispensed"
+    prescription.pharmacist = request.user
+    prescription.dispensed_at = timezone.now()
+    prescription.save()
+
+    messages.success(request, "Prescription dispensed successfully.")
+    return redirect("pharmacist_dashboard")
+
+from django.db import IntegrityError
+from django.contrib import messages
+
+@login_required
+def add_medicine(request):
+    if request.method == "POST":
+        name = request.POST.get("name")
+        price = request.POST.get("price")
+        quantity = request.POST.get("quantity")
+
+        if not name or not price or not quantity:
+            messages.error(request, "All fields are required.")
+            return redirect("add_medicine")
+
+        try:
+            price = float(price)
+            quantity = int(quantity)
+        except ValueError:
+            messages.error(request, "Price and quantity must be valid numbers.")
+            return redirect("add_medicine")
+
+        try:
+            Medicine.objects.create(
+                hospital=request.user.hospital,
+                name=name,
+                price=price,
+                quantity=quantity,
+            )
+            messages.success(request, f"{name} added successfully.")
+            return redirect("medicine_list")
+
+        except IntegrityError:
+            messages.error(request, f"'{name}' already exists in your inventory.")
+            return redirect("add_medicine")
+
+    return render(request, "billing/add_medicine.html")

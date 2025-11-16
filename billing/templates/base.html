@@ -4,72 +4,44 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h4 class="mt-3 mb-4">Welcome to Hospital Billing</h4>
+<div class="container mt-4">
+    <h4 class="mb-4 text-primary">Welcome to Hospital Billing</h4>
 
-    <div class="row">
+    <div class="row g-3 mb-4">
         <div class="col-md-4">
-            <div class="card text-white bg-primary mb-3">
+            <div class="card text-white bg-primary shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Patients</h5>
-                    <p class="card-text">{{ patient_count }}</p>
+                    <p class="card-text fs-4">{{ patient_count|default:0 }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-white bg-success mb-3">
+            <div class="card text-white bg-success shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Appointments</h5>
-                    <p class="card-text">{{ appointment_count }}</p>
+                    <p class="card-text fs-4">{{ appointment_count|default:0 }}</p>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
-            <div class="card text-white bg-info mb-3">
+            <div class="card text-white bg-info shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title">Bills</h5>
-                    <p class="card-text">{{ bill_count }}</p>
+                    <p class="card-text fs-4">{{ bill_count|default:0 }}</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <hr>
-
-    <h5>Summary Chart</h5>
+    <h5 class="mb-3 text-secondary">Summary Chart</h5>
     <canvas id="summaryChart" width="400" height="200"></canvas>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script>
-    const ctx = document.getElementById('summaryChart').getContext('2d');
-    const summaryChart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: ['Patients', 'Appointments', 'Bills'],
-            datasets: [{
-                label: 'Count',
-                data: [{{ patient_count }}, {{ appointment_count }}, {{ bill_count }}],
-                backgroundColor: ['#0d6efd', '#198754', '#0dcaf0']
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { display: false },
-                title: {
-                    display: true,
-                    text: 'Hospital Statistics'
-                }
-            }
-        }
-    });
-</script>
-
 {% if messages %}
-<div class="toast-container position-fixed top-0 end-0 p-3">
+<div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
     {% for message in messages %}
-    <div class="toast align-items-center text-bg-{{ message.tags }} border-0 show" role="alert">
+    <div class="toast align-items-center text-bg-{{ message.tags }} border-0 show shadow-sm" role="alert">
         <div class="d-flex">
             <div class="toast-body">
                 {{ message }}
@@ -80,16 +52,42 @@
     {% endfor %}
 </div>
 {% endif %}
-
-<script>
-    const toastElList = [].slice.call(document.querySelectorAll('.toast'))
-    const toastList = toastElList.map(function (toastEl) {
-        return new bootstrap.Toast(toastEl, { delay: 3000 })
-    })
-    toastList.forEach(toast => toast.show())
-</script>
-
-
 {% endblock %}
 
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const ctx = document.getElementById('summaryChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Patients', 'Appointments', 'Bills'],
+            datasets: [{
+                label: 'Count',
+                data: [
+                    {{ patient_count|default:0 }},
+                    {{ appointment_count|default:0 }},
+                    {{ bill_count|default:0 }}
+                ],
+                backgroundColor: ['#0d6efd', '#198754', '#0dcaf0']
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                title: {
+                    display: true,
+                    text: 'Hospital Overview'
+                }
+            }
+        }
+    });
 
+    // Initialize Bootstrap toasts
+    const toastElList = [].slice.call(document.querySelectorAll('.toast'))
+    toastElList.map(el => new bootstrap.Toast(el, { delay: 4000 })).forEach(toast => toast.show());
+});
+</script>
+{% endblock %}

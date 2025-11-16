@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Add Prescription{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h4 class="mb-4">Add Prescription for {{ patient.full_name }}</h4>
+
+    <form method="POST" class="card p-4 shadow-sm">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label class="form-label">Medicines</label>
+            {{ form.medicines }}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Dosage</label>
+            {{ form.dosage }}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Duration</label>
+            {{ form.duration }}
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label">Instructions</label>
+            {{ form.instructions }}
+        </div>
+
+        <div class="d-flex gap-2">
+            <button type="submit" class="btn btn-primary flex-grow-1">Save Prescription</button>
+            <a href="{% url 'patient_emr' patient.id %}" class="btn btn-secondary flex-grow-1">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

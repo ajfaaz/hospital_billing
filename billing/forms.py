@@ -12,6 +12,7 @@ from .models import (
     LabReport,
     RadiologyReport,
     CustomUser,
+    Prescription,
 )
 
 # ----------------- PATIENT -----------------
@@ -130,3 +131,31 @@ class RadiologyReportForm(forms.ModelForm):
         if patient:
             self.fields["patient_name"].initial = patient.full_name
 
+
+
+# ----------------- Prescription -----------------
+from django import forms
+from .models import Prescription
+
+class PrescriptionForm(forms.ModelForm):
+    class Meta:
+        model = Prescription
+        fields = ["medicines", "dosage", "duration", "instructions"]
+        widgets = {
+            "medicines": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 5,
+                    "placeholder": "Enter one medicine per line, e.g.\nParacetamol 500mg - twice daily\nIbuprofen 200mg - after meals"
+                }
+            ),
+            "dosage": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., 1 tablet"}),
+            "duration": forms.TextInput(attrs={"class": "form-control", "placeholder": "e.g., 5 days"}),
+            "instructions": forms.Textarea(
+                attrs={
+                    "class": "form-control",
+                    "rows": 3,
+                    "placeholder": "Additional notes for the patient"
+                }
+            ),
+        }

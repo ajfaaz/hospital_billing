@@ -1,16 +1,21 @@
+# hospital_billing/asgi.py
 import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-import messaging.routing  # <- our websocket routes
+import billing.routing
+import messaging.routing
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "your_project_name.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hospital_billing.settings")
 
 django_asgi_app = get_asgi_application()
 
 application = ProtocolTypeRouter({
     "http": django_asgi_app,
     "websocket": AuthMiddlewareStack(
-        URLRouter(messaging.routing.websocket_urlpatterns)
+        URLRouter(
+            billing.routing.websocket_urlpatterns +
+            messaging.routing.websocket_urlpatterns
+        )
     ),
 })
