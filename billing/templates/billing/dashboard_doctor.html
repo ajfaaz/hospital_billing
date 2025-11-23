@@ -1,40 +1,53 @@
 {% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Doctor Dashboard{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
-    <h4>Doctor Dashboard</h4>
-    <hr>
 
-    <h5>Patients</h5>
-    <table class="table table-striped" aria-label="Patient list for doctor dashboard">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Age</th>
-                <th>Gender</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
+    <h3 class="fw-bold mb-4 text-primary">
+        <i class="bi bi-person-heart me-2"></i> Doctor Dashboard
+    </h3>
+
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0">My Patients</h5>
+        </div>
+
+        <div class="card-body p-0">
             {% if patients %}
-                {% for patient in patients %}
-                <tr>
-                    <td>{{ patient.full_name }}</td>
-                    <td>{{ patient.age }}</td>
-                    <td>{{ patient.gender }}</td>
-                    <td>
-                        <a href="{% url 'patient_history' patient.id %}" class="btn btn-sm btn-info">
-                            View Medical Records
-                        </a>
-                        <a href="{% url 'add_medical_record' patient.id %}" class="btn btn-sm btn-success">
-                            Add Record
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover m-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Name</th>
+                                <th>Phone</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in patients %}
+                            <tr>
+                                <td>{{ p.full_name }}</td>
+                                <td>{{ p.phone_number }}</td>
+                                <td>
+                                    <a href="{% url 'patient_emr' p.id %}" class="btn btn-primary btn-sm">
+                                        <i class="bi bi-file-medical me-1"></i> EMR
+                                    </a>
+                                    <a href="{% url 'add_prescription' p.id %}" class="btn btn-success btn-sm">
+                                        <i class="bi bi-prescription me-1"></i> Add Prescription
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             {% else %}
-                <tr><td colspan="4">No patients assigned yet.</td></tr>
+                <div class="alert alert-info m-3">No patients assigned yet.</div>
             {% endif %}
-        </tbody>
-    </table>
+        </div>
+    </div>
 </div>
 {% endblock %}

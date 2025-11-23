@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-3">Medicine Inventory</h2>
+
+    <a class="btn btn-primary mb-3" href="{% url 'add_medicine' %}">
+        <i class="bi bi-plus-circle"></i> Add Medicine
+    </a>
+
+    <table class="table table-bordered table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Quantity In Stock</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for med in medicines %}
+            <tr>
+                <td>{{ med.name }}</td>
+                <td>₦{{ med.price }}</td>
+                <td>{{ med.quantity }}</td>
+                <td>
+                    <a href="#" class="btn btn-sm btn-secondary disabled">
+                        Manage
+                    </a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="text-center text-muted">
+                    No medicines in inventory yet.
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+
+    </table>
+</div>
+{% endblock %}

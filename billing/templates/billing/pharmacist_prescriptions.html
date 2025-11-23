@@ -1,39 +1,88 @@
-{% extends "base.html" %}
-{% block title %}Pharmacist - Prescriptions{% endblock %}
+{% extends 'base_dashboard.html' %}
+{% load static %}
+
+{% block title %}Pending Prescriptions{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-  <h3 class="mb-3"><i class="bi bi-prescription2"></i> Pending Prescriptions</h3>
+<div class="container-fluid">
 
-  {% if prescriptions %}
-  <table class="table table-bordered table-hover">
-    <thead class="table-dark">
-      <tr>
-        <th>Patient</th>
-        <th>Doctor</th>
-        <th>Medicines</th>
-        <th>Issued At</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for rx in prescriptions %}
-      <tr>
-        <td>{{ rx.visit.patient.full_name }}</td>
-        <td>{{ rx.doctor.get_full_name }}</td>
-        <td><pre>{{ rx.medicines }}</pre></td>
-        <td>{{ rx.issued_at|date:"M d, Y H:i" }}</td>
-        <td>
-          <a href="{% url 'dispense_prescription' rx.id %}" class="btn btn-success btn-sm">
-            <i class="bi bi-check-circle"></i> Dispense
-          </a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% else %}
-  <div class="alert alert-info">No pending prescriptions found.</div>
-  {% endif %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-primary">
+            <i class="bi bi-prescription2 me-2"></i> Pending Prescriptions
+        </h3>
+    </div>
+
+    {% if prescriptions %}
+    <div class="row g-4">
+
+        {% for p in prescriptions %}
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm border-0 h-100 prescription-card">
+                <div class="card-header bg-light">
+                    <strong><i class="bi bi-person-vcard me-2"></i> Patient:</strong>
+                    {{ p.visit.patient.full_name }}
+                </div>
+
+                <div class="card-body">
+
+                    <p class="mb-1">
+                        <strong>Medicines:</strong><br>
+                        <span class="text-secondary">
+                            {{ p.medicines|linebreaks }}
+                        </span>
+                    </p>
+
+                    <p class="mb-1">
+                        <strong>Dosage:</strong>
+                        <span class="text-secondary">{{ p.dosage }}</span>
+                    </p>
+
+                    <p class="mb-1">
+                        <strong>Duration:</strong>
+                        <span class="text-secondary">{{ p.duration }}</span>
+                    </p>
+
+                    <p class="mb-1">
+                        <strong>Instructions:</strong>
+                        <span class="text-secondary">{{ p.instructions }}</span>
+                    </p>
+
+                    <p class="mt-3 small text-muted">
+                        <i class="bi bi-calendar-event me-1"></i>
+                        Issued: {{ p.issued_at|date:"M d, Y – H:i" }}
+                    </p>
+                </div>
+
+                <div class="card-footer bg-white border-0 text-end">
+                    <a href="{% url 'pharmacist_dispense_prescription' p.id %}"
+                       class="btn btn-success btn-sm shadow-sm">
+                        <i class="bi bi-check2-circle me-1"></i> Dispense
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+
+    </div>
+
+    {% else %}
+    <div class="alert alert-info shadow-sm">
+        <i class="bi bi-info-circle me-2"></i>
+        No pending prescriptions at the moment.
+    </div>
+    {% endif %}
+
 </div>
+
+<style>
+    .prescription-card {
+        transition: all 0.2s ease-in-out;
+        border-radius: 10px !important;
+    }
+    .prescription-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(0,0,0,0.12) !important;
+    }
+</style>
+
 {% endblock %}

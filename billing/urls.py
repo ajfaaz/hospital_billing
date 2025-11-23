@@ -50,9 +50,17 @@ urlpatterns = [
     path('register/', views.register, name='register'),
 
     # Prescriptions
+    path("doctor/prescriptions/", views.doctor_prescriptions, name="doctor_prescriptions"),
+    path("pharmacist/medicines/", views.medicine_inventory, name="medicine_inventory"),
     path("patients/<int:patient_id>/prescription/add/", views.add_prescription, name="add_prescription"),
     path("prescriptions/pending/", views.pending_prescriptions, name="pending_prescriptions"),
     path("pharmacist/medicines/add/", views.add_medicine, name="add_medicine"),
+    path(
+        "pharmacist/history/",
+        views.dispense_history,
+        name="dispense_history"
+ ),
+
 
 
     # ✅ Pharmacist-specific routes
@@ -72,3 +80,4 @@ urlpatterns = [
         name="medicine_list"
     ),
 ]
+

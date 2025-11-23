@@ -474,7 +474,8 @@ def add_medical_record(request, patient_id):
             record.patient = patient
             record.doctor = request.user
             record.save()
-            return redirect("patient_history", patient_id=patient.id)
+            return redirect("patient_emr", patient_id=patient.id)
+            return redirect("patient_emr", patient_id=patient.id)
     else:
         form = MedicalRecordForm()
     return render(request, "billing/add_medical_record.html", {"form": form, "patient": patient})
@@ -491,6 +492,10 @@ def patient_history(request, patient_id):
 def patient_emr(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
 
+    active_visit = PatientVisit.objects.filter(
+        patient=patient, status="active"
+    ).first()
+
     medical_records = MedicalRecord.objects.filter(patient=patient).order_by("-created_at")
     lab_reports = LabReport.objects.filter(patient=patient).order_by("-date")
     radiology_reports = RadiologyReport.objects.filter(patient=patient).order_by("-created_at")
@@ -505,6 +510,7 @@ def patient_emr(request, patient_id):
             "lab_reports": lab_reports,
             "radiology_reports": radiology_reports,
             "prescriptions": prescriptions,
+            "active_visit": active_visit,
         },
     )
 
@@ -571,6 +577,9 @@ def create_prescription(request, visit_id):
 @login_required
 def pending_prescriptions(request):
     prescriptions = Prescription.objects.filter(status="issued").select_related("doctor", "visit__patient")
+    prescriptions = Prescription.objects.filter(
+        status="issued"
+    ).select_related("visit__patient", "doctor")
     return render(request, "billing/prescriptions/pending_prescriptions.html", {"prescriptions": prescriptions})
 
 
@@ -664,28 +673,43 @@ from .forms import PrescriptionForm
 # Doctor adds a prescription
 @login_required
 def add_prescription(request, patient_id):
-    patient = get_object_or_404(Patient, id=patient_id)
-    visit = PatientVisit.objects.filter(patient=patient).last()
+    patient = get_object_or_404(Patient, pk=patient_id)
+
+    # Get current active visit
+    visit = PatientVisit.objects.filter(
+        patient=patient,
+        status="active"
+    ).first()
+
+    # Automatically create an active visit if none exists
+    if not visit:
+        visit = PatientVisit.objects.create(
+            patient=patient,
+            hospital=request.user.hospital,
+            doctor=request.user,
+            status="active"
+        )
 
     if request.method == "POST":
-        form = PrescriptionForm(request.POST)
-        if form.is_valid():
-            prescription = form.save(commit=False)
-            prescription.visit = visit
-            prescription.doctor = request.user
-            prescription.hospital = request.user.hospital  # ✅ ensures link
-            prescription.save()
+        medicines = request.POST.get("medicines")
+        dosage = request.POST.get("dosage") or "N/A"
+        duration = request.POST.get("duration") or "N/A"
+        instructions = request.POST.get("instructions") or "No special instructions"
 
-            messages.success(request, "Prescription saved successfully!")
-            return redirect("patient_emr", patient_id=patient.id)
-    else:
-        form = PrescriptionForm()
+        prescription = Prescription.objects.create(
+            hospital=request.user.hospital,
+            visit=visit,
+            doctor=request.user,             # this is fine if Prescription model has doctor field
+            medicines=medicines,
+            dosage=dosage,
+            duration=duration,
+            instructions=instructions,
+        )
 
-    return render(
-        request,
-        "billing/add_prescription.html",
-        {"form": form, "patient": patient},
-    )
+        messages.success(request, "Prescription added successfully.")
+        return redirect("patient_emr", patient_id=patient.id)
+
+    return render(request, "billing/prescription_form.html", {"patient": patient})
 
 # Pharmacist sees pending prescriptions
 @login_required
@@ -693,6 +717,9 @@ def pending_prescriptions(request):
     prescriptions = Prescription.objects.filter(status="issued").select_related(
         "visit__patient", "doctor", "medicine"
     )
+    prescriptions = Prescription.objects.filter(
+        status="issued"
+    ).select_related("visit__patient", "doctor")
     return render(request, "billing/prescriptions/pending_prescriptions.html", {"prescriptions": prescriptions})
 
 
@@ -747,17 +774,68 @@ def pharmacist_prescriptions(request):
 def pharmacist_dispense_prescription(request, prescription_id):
     prescription = get_object_or_404(Prescription, pk=prescription_id)
 
+    # Security check
     if request.user.role != "pharmacist":
         messages.error(request, "Unauthorized access.")
         return redirect("dashboard")
 
-    prescription.status = "dispensed"
-    prescription.pharmacist = request.user
-    prescription.dispensed_at = timezone.now()
-    prescription.save()
+    # POST: Pharmacist submits dispense form
+    if request.method == "POST":
+        notes = request.POST.get("dispensed_notes", "").strip()
 
-    messages.success(request, "Prescription dispensed successfully.")
-    return redirect("pharmacist_dashboard")
+        # -------------------------------
+        # 1️⃣ Deduct medicine from inventory
+        # -------------------------------
+        lines = prescription.medicines.split("\n")  # medicine1 x 2
+        errors = []
+
+        for line in lines:
+            if "x" not in line:
+                continue
+
+            med_name = line.split("x")[0].strip()
+            qty_needed = int(line.split("x")[1].strip())
+
+            try:
+                med = Medicine.objects.get(
+                    hospital=request.user.hospital,
+                    name__iexact=med_name
+                )
+            except Medicine.DoesNotExist:
+                errors.append(f"{med_name} is not found in inventory.")
+                continue
+
+            if med.quantity < qty_needed:
+                errors.append(f"Not enough stock for: {med_name} (needed {qty_needed}, available {med.quantity})")
+            else:
+                # deduct from stock
+                med.quantity -= qty_needed
+                med.save()
+
+        # If any errors, stop dispensing
+        if errors:
+            messages.error(request, "Unable to dispense prescription:")
+            for e in errors:
+                messages.error(request, e)
+            return redirect("pharmacist_dispense_view", prescription_id=prescription.id)
+
+        # -------------------------------
+        # 2️⃣ Update prescription record
+        # -------------------------------
+        prescription.status = "dispensed"
+        prescription.pharmacist = request.user
+        prescription.dispensed_at = timezone.now()
+        prescription.dispensed_notes = notes
+        prescription.save()
+
+        messages.success(request, "Prescription dispensed successfully.")
+        return redirect("pharmacist_history")
+
+    # GET request: show confirmation page
+    return render(request, "billing/pharmacist_dispense_confirm.html", {
+        "prescription": prescription
+    })
+
 
 from django.db import IntegrityError
 from django.contrib import messages
@@ -795,3 +873,45 @@ def add_medicine(request):
             return redirect("add_medicine")
 
     return render(request, "billing/add_medicine.html")
+
+
+@login_required
+def dispense_history(request):
+    if request.user.role != "pharmacist":
+        return HttpResponseForbidden("Not allowed.")
+
+    history = Prescription.objects.filter(
+        status="dispensed",
+        pharmacist=request.user
+    ).order_by("-dispensed_at")
+
+    return render(request, "billing/dispense_history.html", {
+        "history": history
+    })
+
+@login_required
+def medicine_inventory(request):
+    if request.user.role != "pharmacist":
+        messages.error(request, "Unauthorized access.")
+        return redirect("dashboard")
+
+    medicines = Medicine.objects.filter(hospital=request.user.hospital)
+
+    return render(request, "medicine_inventory.html", {
+        "medicines": medicines
+    })
+
+@login_required
+def doctor_prescriptions(request):
+    if request.user.role != "doctor":
+        messages.error(request, "Unauthorized access.")
+        return redirect("dashboard")
+
+    prescriptions = Prescription.objects.filter(
+        doctor=request.user
+    ).order_by('-issued_at')
+
+    
+    return render(request, "billing/doctor_prescriptions.html", {
+        "prescriptions": prescriptions
+    })

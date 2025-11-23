@@ -50,10 +50,36 @@
   <!-- ========== Prescriptions ========== -->
   <h4 class="mt-5">Prescriptions</h4>
   {% if user.role == "doctor" %}
-  <a href="{% url 'add_prescription' patient.id %}" class="btn btn-primary btn-sm">Add Prescription</a>
-    <i class="bi bi-file-medical"></i> Add Prescription
-  </a>
+  <a href="{% url 'add_prescription' patient.id %}" class="btn btn-primary mb-3"> ➕ Add Prescription </a>
   {% endif %}
+
+  <form method="POST">
+    {% csrf_token %}
+
+    <div class="form-group">
+      <label>Medicines (one per line)</label>
+      <textarea name="medicines" class="form-control" rows="4"
+        placeholder="Paracetamol 500mg x 2&#x0a;Amoxicillin 250mg x 3"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label>Dosage</label>
+      <input type="text" name="dosage" class="form-control" placeholder="3 times daily">
+    </div>
+
+    <div class="form-group">
+      <label>Duration</label>
+      <input type="text" name="duration" class="form-control" placeholder="5 days">
+    </div>
+
+    <div class="form-group">
+      <label>Instructions</label>
+      <textarea name="instructions" class="form-control" rows="3" placeholder="E.g., Take after meals"></textarea>
+    </div>
+
+    <button class="btn btn-success">Submit Prescription</button>
+  </form>
+
   {% for prescription in patient.visits.last.prescription_set.all %}
   <div class="card mb-2 p-3">
     <strong>{{ prescription.medicines }}</strong> — {{ prescription.dosage }}

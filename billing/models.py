@@ -350,7 +350,13 @@ class Prescription(models.Model):
         default='issued'
     )
     issued_at = models.DateTimeField(auto_now_add=True)
+    
     dispensed_at = models.DateTimeField(null=True, blank=True)
+    dispensed_notes = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Optional: Record of what was actually dispensed"
+    )
 
     def __str__(self):
         return f"Rx for {self.visit.patient} by {self.doctor}"

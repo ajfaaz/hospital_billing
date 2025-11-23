@@ -1,0 +1,73 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}My Prescriptions{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold text-primary">
+            <i class="bi bi-journal-medical me-2"></i> My Prescriptions
+        </h4>
+    </div>
+
+    <!-- Table Card -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Patient</th>
+                        <th>Medicines</th>
+                        <th>Status</th>
+                        <th>Issued On</th>
+                        <th>Dispensed On</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% if prescriptions %}
+                        {% for p in prescriptions %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>{{ p.visit.patient.full_name }}</td>
+                                <td>
+                                    <pre class="m-0 p-0" style="white-space: pre-wrap;">{{ p.medicines }}</pre>
+                                </td>
+                                <td>
+                                    {% if p.status == "issued" %}
+                                        <span class="badge bg-warning text-dark">Issued</span>
+                                    {% else %}
+                                        <span class="badge bg-success">Dispensed</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ p.issued_at|date:"M d, Y H:i" }}</td>
+                                <td>
+                                    {% if p.dispensed_at %}
+                                        {{ p.dispensed_at|date:"M d, Y H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-4 text-muted">
+                                <i class="bi bi-info-circle me-2"></i>
+                                No prescriptions found.
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}
