@@ -1,0 +1,77 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}
+{% if mode == "in" %} Add Stock {% else %} Remove Stock {% endif %}
+{% endblock %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <!-- HEADER BAR -->
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold {% if mode == 'in' %}text-success{% else %}text-danger{% endif %}">
+            {% if mode == "in" %}
+            <i class="bi bi-box-arrow-in-down"></i> Add Stock
+            {% else %}
+            <i class="bi bi-box-arrow-up"></i> Remove Stock
+            {% endif %}
+        </h3>
+
+        <a href="{% url 'medicine_detail' medicine.id %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+
+    <!-- CARD -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body">
+
+            <!-- MEDICINE INFO -->
+            <div class="mb-4">
+                <h5 class="fw-semibold mb-1">{{ medicine.name }}</h5>
+                <div class="text-muted">
+                    <strong>Current Stock:</strong> {{ medicine.quantity }} units  
+                    <br>
+                    <strong>Price:</strong> ₦{{ medicine.price }}
+                </div>
+            </div>
+
+            <!-- FORM -->
+            <form method="POST">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">
+                        {% if mode == "in" %}Quantity to Add{% else %}Quantity to Remove{% endif %}
+                    </label>
+
+                    <input type="number" min="1" name="quantity"
+                           class="form-control form-control-lg"
+                           placeholder="Enter quantity…" required>
+
+                    {% if mode == "out" %}
+                    <small class="text-danger d-block mt-1">
+                        Max removable: {{ medicine.quantity }}
+                    </small>
+                    {% endif %}
+                </div>
+
+                <div class="text-end mt-4">
+                    <button class="btn btn-lg {% if mode == 'in' %}btn-success{% else %}btn-danger{% endif %}">
+                        {% if mode == "in" %}
+                        <i class="bi bi-plus-circle"></i> Add Stock
+                        {% else %}
+                        <i class="bi bi-dash-circle"></i> Remove Stock
+                        {% endif %}
+                    </button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+
+</div>
+
+{% endblock %}

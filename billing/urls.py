@@ -12,9 +12,17 @@ urlpatterns = [
     path('patients/add/', views.create_patient, name='create_patient'),
     path('patients/<int:patient_id>/history/add/', views.add_medical_record, name='add_medical_record'),
     path('patients/<int:patient_id>/history/', views.patient_history, name='patient_history'),
+    path('patients/<int:patient_id>/doctor-note/add/', views.add_doctor_note, name='add_doctor_note'),
+    path('patients/<int:patient_id>/', views.patient_detail, name='patient_detail'),
     path('patients/<int:patient_id>/emr/', views.patient_emr, name='patient_emr'),
     path('patients/<int:patient_id>/lab/add/', views.add_lab_report, name='add_lab_report'),
-    path('patients/<int:patient_id>/radiology/add/', views.add_radiology_report, name='add_radiology_report'),
+    path("patients/<int:patient_id>/emr/print/", views.export_emr_pdf, name="export_emr_pdf"),
+    path(
+    "patients/<int:patient_id>/vitals/add/",
+    views.add_vital_sign,     # FIXED
+    name="add_vital_sign"
+),
+
 
     # Appointments
     path('appointments/', views.appointment_list, name='appointment_list'),
@@ -36,6 +44,9 @@ urlpatterns = [
     path("messages/compose/", views.compose_message, name="compose_message"),
     path("messages/<int:pk>/", views.message_detail, name="message_detail"),
     path("conversation/<int:sender_id>/", views.conversation, name="conversation"),
+
+    # Autocomplete API Endpoint
+    path("api/medicine-autocomplete/", views.medicine_autocomplete, name="medicine_autocomplete"),
 
     # Role Dashboards
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
@@ -79,5 +90,23 @@ urlpatterns = [
         views.medicine_list,
         name="medicine_list"
     ),
+
+    # --- MEDICINE INVENTORY ROUTES ---
+    path('medicines/', views.medicine_list, name='medicine_list'),
+    path('medicines/add/', views.add_medicine, name='add_medicine'),
+    path('medicines/<int:pk>/', views.medicine_detail, name='medicine_detail'),
+    path('medicines/<int:pk>/edit/', views.edit_medicine, name='edit_medicine'),
+    path('medicines/<int:pk>/delete/', views.delete_medicine, name='delete_medicine'),
+
+    path('medicines/stock-logs/', views.stock_logs_view, name='stock_logs'),
+    path('medicines/export/csv/', views.export_medicines_csv, name='export_medicines_csv'),
+    path('pharmacy/', views.inventory_dashboard, name='inventory_dashboard'),
+
+    # --- CATEGORY MANAGEMENT ROUTES ---
+    path("categories/", views.category_list, name="category_list"),
+    path("categories/add/", views.add_category, name="add_category"),
+    path("categories/<int:category_id>/edit/", views.edit_category, name="edit_category"),
+    path("categories/<int:cat_id>/delete/", views.delete_category, name="delete_category"),
+
 ]
 

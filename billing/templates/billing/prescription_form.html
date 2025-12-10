@@ -5,50 +5,154 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="card shadow-sm border-0">
-        <div class="card-header bg-primary text-white">
-            <h5 class="mb-0">
-                <i class="bi bi-prescription me-2"></i> Add Prescription for {{ patient.full_name }}
-            </h5>
-        </div>
 
-        <div class="card-body">
-            <form method="post">
-                {% csrf_token %}
+    <!-- Header -->
+    <div class="d-flex align-items-center mb-4">
+        <h3 class="fw-bold text-primary me-auto">
+            <i class="bi bi-prescription2 me-2"></i>
+            Add Prescription
+        </h3>
+        <a href="{% url 'patient_emr' patient.id %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
 
-                <div class="mb-3">
-                    <label class="form-label fw-semibold">Medicines</label>
-                    <textarea name="medicines" class="form-control" rows="4"
-                        placeholder="e.g. Amoxicillin x 2&#10;Paracetamol x 3"
-                        required></textarea>
+    <div class="card shadow-lg border-0 p-4">
+        <h5 class="fw-semibold text-secondary mb-3">
+            Patient: <span class="text-dark">{{ patient.full_name }}</span>
+        </h5>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <!-- =========================================
+                 AUTOCOMPLETE MEDICINE FIELD
+            ========================================== -->
+            <div class="mb-4 position-relative">
+                <label class="form-label fw-semibold">Search Medicine</label>
+
+                <input type="text" id="medicineInput" 
+                       class="form-control form-control-lg"
+                       placeholder="Start typing… (e.g. Paracetamol)">
+
+                <!-- AUTOCOMPLETE DROPDOWN -->
+                <div id="autocompleteList"
+                     class="list-group position-absolute w-100 shadow-sm"
+                     style="z-index: 2000; max-height: 250px; display:none; overflow-y:auto;"></div>
+
+                <small class="text-muted">Click a suggestion to add it to the list.</small>
+
+                <!-- Selected medicines as pills -->
+                <div id="selectedMeds" class="mt-3 d-flex flex-wrap gap-2"></div>
+
+                <!-- Hidden field to send final list -->
+                <textarea name="medicines" id="finalMedicineList" class="d-none"></textarea>
+            </div>
+
+            <!-- =========================================
+                 DOSAGE + DURATION + INSTRUCTIONS
+            ========================================== -->
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-semibold">Dosage</label>
+                    <input name="dosage" class="form-control form-control-lg" placeholder="e.g. 500mg / 3× daily">
                 </div>
 
-                <div class="row">
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label fw-semibold">Dosage</label>
-                        <input name="dosage" class="form-control" placeholder="e.g. 500mg">
-                    </div>
-
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label fw-semibold">Duration</label>
-                        <input name="duration" class="form-control" placeholder="e.g. 5 days">
-                    </div>
-
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label fw-semibold">Instructions</label>
-                        <input name="instructions" class="form-control" placeholder="e.g. Take after meals">
-                    </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-semibold">Duration</label>
+                    <input name="duration" class="form-control form-control-lg" placeholder="e.g. 5 days">
                 </div>
 
-                <button class="btn btn-success px-4">
-                    <i class="bi bi-check-circle me-1"></i> Submit Prescription
+                <div class="col-md-4 mb-3">
+                    <label class="form-label fw-semibold">Instructions</label>
+                    <input name="instructions" class="form-control form-control-lg" placeholder="e.g. After meals">
+                </div>
+            </div>
+
+            <div class="text-end mt-4">
+                <button class="btn btn-primary btn-lg px-5">
+                    <i class="bi bi-check-circle me-1"></i>
+                    Save Prescription
                 </button>
+            </div>
 
-                <a href="{% url 'doctor_dashboard' %}" class="btn btn-secondary px-4 ms-2">
-                    <i class="bi bi-arrow-left"></i> Back
-                </a>
-            </form>
-        </div>
+        </form>
     </div>
 </div>
+
+
+<!-- =========================================
+     AUTOCOMPLETE SCRIPT (FULLY WORKING)
+========================================== -->
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const input = document.getElementById("medicineInput");
+    const list = document.getElementById("autocompleteList");
+    const selected = document.getElementById("selectedMeds");
+    const finalField = document.getElementById("finalMedicineList");
+
+    let selectedMeds = [];
+
+    // ---- Fetch suggestions from API ----
+    input.addEventListener("input", () => {
+        const q = input.value.trim();
+
+        if (q.length < 1) {
+            list.style.display = "none";
+            return;
+        }
+
+        fetch(`/api/medicine-autocomplete/?q=${q}`)
+            .then(res => res.json())
+            .then(data => {
+                list.innerHTML = "";
+                list.style.display = "block";
+
+                data.forEach(item => {
+                    const el = document.createElement("button");
+                    el.type = "button";
+                    el.className = "list-group-item list-group-item-action";
+                    el.innerHTML = `
+                        <div class="fw-bold">${item.name}</div>
+                        <small class="text-muted">
+                            Price: ₦${item.price} | Stock: ${item.qty}
+                        </small>
+                    `;
+
+                    el.onclick = () => addMedicine(item.name);
+                    list.appendChild(el);
+                });
+            });
+    });
+
+    // ---- Add selected medicine ----
+    function addMedicine(name) {
+        selectedMeds.push(name);
+
+        const pill = document.createElement("span");
+        pill.className = "badge rounded-pill bg-primary p-2";
+        pill.innerHTML = `${name} <i class="bi bi-x ms-1" style="cursor:pointer;"></i>`;
+
+        pill.querySelector("i").onclick = () => {
+            pill.remove();
+            selectedMeds = selectedMeds.filter(x => x !== name);
+            finalField.value = selectedMeds.join("\n");
+        };
+
+        selected.appendChild(pill);
+        finalField.value = selectedMeds.join("\n");
+
+        input.value = "";
+        list.style.display = "none";
+    }
+
+    // ---- Click outside to close dropdown ----
+    document.addEventListener("click", (e) => {
+        if (!input.contains(e.target)) {
+            list.style.display = "none";
+        }
+    });
+});
+</script>
+
 {% endblock %}

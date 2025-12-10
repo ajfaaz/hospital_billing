@@ -1,0 +1,152 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Pharmacy Inventory Overview{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+
+    <!-- TITLE + ACTIONS -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3 class="fw-bold text-primary">
+            <i class="bi bi-capsule me-2"></i> Pharmacy Inventory Overview
+        </h3>
+        <div>
+            <a href="{% url 'add_medicine' %}" class="btn btn-primary me-2">
+                <i class="bi bi-plus-lg"></i> Add Medicine
+            </a>
+            <a href="{% url 'stock_logs' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-clock-history"></i> Stock Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- STAT CARDS -->
+    <div class="row g-3 mb-4">
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="text-uppercase small">Total Medicines</h6>
+                    <h2 class="fw-bold">{{ total_medicines }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-warning">
+                <div class="card-body">
+                    <h6 class="text-uppercase small">Low Stock</h6>
+                    <h2 class="fw-bold">{{ low_stock }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="text-uppercase small">Out of Stock</h6>
+                    <h2 class="fw-bold">{{ out_of_stock }}</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card shadow-sm border-0 bg-success text-white">
+                <div class="card-body">
+                    <h6 class="text-uppercase small">Total Quantity</h6>
+                    <h2 class="fw-bold">{{ total_quantity }}</h2>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- RECENT STOCK MOVEMENT -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white py-3">
+            <h5 class="fw-bold mb-0">
+                <i class="bi bi-clock-history me-2"></i> Recent Stock Activity
+            </h5>
+        </div>
+
+        <div class="card-body p-0">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Medicine</th>
+                        <th>Action</th>
+                        <th>Qty</th>
+                        <th>User</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {% for log in recent_logs %}
+                    <tr>
+                        <td>
+                            <strong>{{ log.medicine.name }}</strong>
+                        </td>
+                        <td>
+                            {% if log.action == "IN" %}
+                                <span class="badge bg-success">
+                                    <i class="bi bi-arrow-down"></i> Stock In
+                                </span>
+                            {% else %}
+                                <span class="badge bg-danger">
+                                    <i class="bi bi-arrow-up"></i> Stock Out
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ log.quantity }}</td>
+                        <td>{{ log.user.get_full_name|default:log.user.username }}</td>
+                        <td>{{ log.timestamp|date:"M d, Y - h:i A" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">
+                            No recent activity
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+
+            </table>
+        </div>
+    </div>
+
+    <!-- QUICK LINKS -->
+    <div class="row g-3">
+
+        <div class="col-md-4">
+            <a href="{% url 'medicine_list' %}" class="text-decoration-none">
+                <div class="card shadow-sm border-0 p-3 hover-shadow">
+                    <h5><i class="bi bi-list-ul me-2"></i> View Medicine List</h5>
+                    <p class="text-muted mb-0 small">Browse, edit and manage all medicines.</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a href="{% url 'stock_logs' %}" class="text-decoration-none">
+                <div class="card shadow-sm border-0 p-3 hover-shadow">
+                    <h5><i class="bi bi-journal-text me-2"></i> View Stock Logs</h5>
+                    <p class="text-muted mb-0 small">Full history of stock movement.</p>
+                </div>
+            </a>
+        </div>
+
+        <div class="col-md-4">
+            <a href="{% url 'add_medicine' %}" class="text-decoration-none">
+                <div class="card shadow-sm border-0 p-3 hover-shadow">
+                    <h5><i class="bi bi-plus-circle me-2"></i> Add New Medicine</h5>
+                    <p class="text-muted mb-0 small">Register new items to inventory.</p>
+                </div>
+            </a>
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

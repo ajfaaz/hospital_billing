@@ -1,0 +1,82 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Medicine Details{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="fw-bold">{{ medicine.name }}</h3>
+        <a href="{% url 'medicine_list' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back
+        </a>
+    </div>
+
+    <!-- Medicine Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+
+            <div class="row">
+                <div class="col-md-4">
+                    <h6 class="text-muted">Price</h6>
+                    <p class="fs-5 fw-semibold">₦{{ medicine.price }}</p>
+                </div>
+
+                <div class="col-md-4">
+                    <h6 class="text-muted">Quantity In Stock</h6>
+                    <p class="fs-5 fw-semibold">{{ medicine.quantity }}</p>
+                </div>
+
+                <div class="col-md-4">
+                    <h6 class="text-muted">Description</h6>
+                    <p>{{ medicine.description|default:"No description" }}</p>
+                </div>
+            </div>
+
+            <div class="text-end mt-3">
+                <a href="{% url 'edit_medicine' medicine.id %}" class="btn btn-primary me-2">
+                    <i class="bi bi-pencil-square"></i> Edit
+                </a>
+                <a href="{% url 'delete_medicine' medicine.id %}" class="btn btn-danger">
+                    <i class="bi bi-trash"></i> Delete
+                </a>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Stock Logs -->
+    <h4 class="fw-bold mb-3">Stock History</h4>
+
+    {% if logs %}
+        <div class="timeline">
+            {% for log in logs %}
+            <div class="timeline-item mb-3 p-3 border rounded bg-light">
+                <strong class="text-primary">
+                    {% if log.action == "IN" %}
+                        <i class="bi bi-box-arrow-in-down"></i> Stock Added
+                    {% else %}
+                        <i class="bi bi-box-arrow-up"></i> Stock Removed
+                    {% endif %}
+                </strong>
+
+                <div class="mt-2">
+                    <p class="mb-1"><strong>Quantity:</strong> {{ log.quantity }}</p>
+                    <p class="mb-1"><strong>User:</strong> {{ log.user.get_full_name|default:log.user.username }}</p>
+                    <p class="mb-1"><strong>Date:</strong> {{ log.timestamp|date:"M d, Y — h:i A" }}</p>
+
+                    {% if log.note %}
+                        <p class="text-muted mb-0"><strong>Note:</strong> {{ log.note }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted fst-italic">No stock activity recorded yet.</p>
+    {% endif %}
+
+</div>
+
+{% endblock %}

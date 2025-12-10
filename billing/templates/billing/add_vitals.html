@@ -1,0 +1,58 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Record Vital Signs{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">Record Vital Signs — {{ patient.full_name }}</h5>
+        </div>
+
+        <form method="post" class="card-body">
+            {% csrf_token %}
+
+            <div class="row g-3">
+
+                <div class="col-md-3">
+                    <label class="form-label">Temperature (°C)</label>
+                    <input type="number" step="0.1" name="temperature" required class="form-control">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Pulse (bpm)</label>
+                    <input type="number" name="pulse" required class="form-control">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Respiratory Rate</label>
+                    <input type="number" name="respiratory_rate" required class="form-control">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">SpO₂ (%)</label>
+                    <input type="number" name="spo2" required class="form-control">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Systolic</label>
+                    <input type="number" name="systolic" required class="form-control">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Diastolic</label>
+                    <input type="number" name="diastolic" required class="form-control">
+                </div>
+
+            </div>
+
+            <div class="mt-4 text-end">
+                <a href="{% url 'patient_emr' patient.id %}" class="btn btn-secondary">Cancel</a>
+                <button class="btn btn-primary">Save Vital Signs</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

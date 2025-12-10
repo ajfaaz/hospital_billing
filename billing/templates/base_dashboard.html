@@ -89,7 +89,7 @@
                 <i class="bi bi-speedometer me-2"></i> Pharmacist Dashboard
             </a>
 
-            <a href="{% url 'medicine_inventory' %}">
+            <a href="{% url 'medicine_list' %}">
                 <i class="bi bi-capsule me-2"></i> Medicine Inventory
             </a>
 
@@ -104,6 +104,13 @@
             <a href="{% url 'dispense_history' %}">
                 <i class="bi bi-clock-history me-2"></i> Dispense History
             </a>
+            
+            <li>
+                <a href="{% url 'category_list' %}" class="nav-link">
+                    <i class="fas fa-tags"></i> Medicine Categories
+                </a>
+            </li>
+
         {% endif %}
 
         <!-- DOCTOR -->

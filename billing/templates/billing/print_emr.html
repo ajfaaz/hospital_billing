@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>{{ patient.full_name }} - EMR Export</title>
+
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        h1, h2, h3 { margin-bottom: 5px; }
+        .section { margin-bottom: 25px; }
+        .divider { height: 2px; background: #333; margin: 15px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table, th, td { border: 1px solid #999; padding: 8px; }
+        th { background: #eee; }
+    </style>
+</head>
+
+<body>
+
+<h1>Electronic Medical Record (EMR)</h1>
+<h3>Patient: {{ patient.full_name }}</h3>
+<p><b>DOB:</b> {{ patient.dob }} &nbsp;&nbsp;&nbsp; 
+<b>Phone:</b> {{ patient.phone }} <br>
+<b>Hospital:</b> {{ patient.hospital.name }}</p>
+
+<div class="divider"></div>
+
+<!-- MEDICAL HISTORY -->
+<div class="section">
+    <h2>Medical History</h2>
+
+    {% if medical_records %}
+        {% for rec in medical_records %}
+            <h4>{{ rec.title }}</h4>
+            <p><i>{{ rec.created_at|date:"M d, Y H:i" }}</i></p>
+            <p>{{ rec.notes }}</p>
+            <hr>
+        {% endfor %}
+    {% else %}
+        <p>No medical history.</p>
+    {% endif %}
+</div>
+
+<!-- VITAL SIGNS -->
+<div class="section">
+    <h2>Vital Signs</h2>
+
+    {% if vital_signs %}
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Temp</th>
+                <th>Pulse</th>
+                <th>Resp</th>
+                <th>BP</th>
+                <th>SPO₂</th>
+                <th>Recorded By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for v in vital_signs %}
+            <tr>
+                <td>{{ v.created_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ v.temperature }}</td>
+                <td>{{ v.pulse }}</td>
+                <td>{{ v.respiratory_rate }}</td>
+                <td>{{ v.blood_pressure }}</td>
+                <td>{{ v.spo2 }}%</td>
+                <td>{{ v.recorded_by.get_full_name }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+        <p>No vital signs recorded.</p>
+    {% endif %}
+</div>
+
+<!-- LAB REPORTS -->
+<div class="section">
+    <h2>Lab Reports</h2>
+
+    {% if lab_reports %}
+        {% for lab in lab_reports %}
+            <h4>{{ lab.test_name }}</h4>
+            <p><i>{{ lab.date|date:"M d, Y" }}</i></p>
+            <p>{{ lab.result_summary }}</p>
+            <hr>
+        {% endfor %}
+    {% else %}
+        <p>No lab reports available.</p>
+    {% endif %}
+</div>
+
+<!-- RADIOLOGY -->
+<div class="section">
+    <h2>Radiology</h2>
+    {% if radiology_reports %}
+        {% for r in radiology_reports %}
+            <h4>{{ r.title }}</h4>
+            <p><i>{{ r.created_at|date:"M d, Y" }}</i></p>
+            <p>{{ r.findings }}</p>
+            <hr>
+        {% endfor %}
+    {% else %}
+        <p>No radiology records.</p>
+    {% endif %}
+</div>
+
+<!-- PRESCRIPTIONS -->
+<div class="section">
+    <h2>Prescriptions</h2>
+    {% if prescriptions %}
+        {% for p in prescriptions %}
+            <p>
+                <b>{{ p.medicine_name }}</b><br>
+                Dosage: {{ p.dosage }} / Duration: {{ p.duration }}<br>
+                <i>{{ p.issued_at|date:"M d, Y" }} – Dr. {{ p.doctor.get_full_name }}</i>
+            </p>
+            <hr>
+        {% endfor %}
+    {% else %}
+        <p>No prescriptions found.</p>
+    {% endif %}
+</div>
+
+</body>
+</html>

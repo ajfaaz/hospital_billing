@@ -1,32 +1,22 @@
-# hospital_billing/billing/models.py
-
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
 import uuid
 
 
+# ==============================
+# CORE ORGANIZATIONAL MODELS
+# ==============================
 
 class Hospital(models.Model):
-    """
-    Represents a hospital (or clinic) that owns this instance.
-    All data is scoped to a hospital.
-    """
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
 
     def __str__(self):
         return self.name
 
-    class Meta:
-        verbose_name = "Hospital"
-        verbose_name_plural = "Hospitals"
-
 
 class CustomUser(AbstractUser):
-    """
-    Extended user model with role and hospital affiliation.
-    """
     USER_ROLE_CHOICES = [
         ('admin', 'Admin'),
         ('receptionist', 'Receptionist'),
@@ -34,48 +24,45 @@ class CustomUser(AbstractUser):
         ('lab', 'Lab Technician'),
         ('radiologist', 'Radiologist'),
         ('pharmacist', 'Pharmacist'),
-        ('accountant', 'Accountant'),  # ✅ Added
+        ('accountant', 'Accountant'),
     ]
 
-    role = models.CharField(
-        max_length=20,
-        choices=USER_ROLE_CHOICES,
-        default='receptionist'
-    )
-
-    hospital = models.ForeignKey(
-        'Hospital',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True
-    )
-
-    def is_admin(self):
-        return self.role == 'admin'
-
-    def is_doctor(self):
-        return self.role == 'doctor'
-
-    def is_receptionist(self):
-        return self.role == 'receptionist'
-
-    def is_lab_technician(self):
-        return self.role == 'lab'
-
-    def is_radiologist(self):
-        return self.role == 'radiologist'
-
-    def is_pharmacist(self):
-        return self.role == 'pharmacist'
-
-    def is_accountant(self):  # ✅ Now safe to define this
-        return self.role == 'accountant'
+    role = models.CharField(max_length=20, choices=USER_ROLE_CHOICES, default='receptionist')
+    hospital = models.ForeignKey(Hospital, null=True, blank=True, on_delete=models.SET_NULL)
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
 
+    # ✅ Add these helper methods
+    def is_admin(self):
+        return self.role == "admin"
+
+    def is_pharmacist(self):
+        return self.role == "pharmacist"
+
+    def is_doctor(self):
+        return self.role == "doctor"
+
+    def is_receptionist(self):
+        return self.role == "receptionist"
+
+    def is_lab(self):
+        return self.role == "lab"
+
+    def is_radiologist(self):
+        return self.role == "radiologist"
+
+    def is_accountant(self):
+        return self.role == "accountant"
+
+
+
+# ==============================
+# PATIENT & VISIT MANAGEMENT
+# ==============================
+
 class Patient(models.Model):
-    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
     full_name = models.CharField(max_length=100)
     date_of_birth = models.DateField()
     phone_number = models.CharField(max_length=20)
@@ -85,41 +72,73 @@ class Patient(models.Model):
     def __str__(self):
         return self.full_name
 
-    class Meta:
-        ordering = ['full_name']
+
+class PatientVisit(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('under_diagnosis', 'Under Diagnosis'),
+        ('lab_requested', 'Lab Requested'),
+        ('lab_completed', 'Lab Completed'),
+        ('radiology_requested', 'Radiology Requested'),
+        ('radiology_completed', 'Radiology Completed'),
+        ('prescribed', 'Prescribed'),
+        ('completed', 'Completed'),
+    ]
+
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    assigned_doctor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="visits",
+        limit_choices_to={'role': 'doctor'},
+    )
+    assigned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="assigned_visits",
+        limit_choices_to={'role': 'receptionist'},
+    )
+    status = models.CharField(max_length=25, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.patient} - {self.status}"
 
 
+# ==============================
+# SERVICES & BILLING
+# ==============================
 
 class Service(models.Model):
-    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     price = models.DecimalField(max_digits=8, decimal_places=2)
 
-    def __str__(self):
-        return f"{self.name} - ${self.price}"
-
     class Meta:
         unique_together = ('hospital', 'name')
 
+    def __str__(self):
+        return f"{self.name} - ₦{self.price}"
+
 
 class Bill(models.Model):
-    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    invoice_no = models.CharField(max_length=20, unique=True, default=uuid.uuid4)
+    invoice_no = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Invoice {self.invoice_no} - {self.patient}"
-
-    class Meta:
-        ordering = ['-created_at']
+        return f"Invoice {self.invoice_no}"
 
 
 class BillItem(models.Model):
-    bill = models.ForeignKey(Bill, on_delete=models.CASCADE, related_name='items')
+    bill = models.ForeignKey(Bill, related_name='items', on_delete=models.CASCADE)
     service = models.ForeignKey(Service, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
@@ -127,9 +146,6 @@ class BillItem(models.Model):
     def save(self, *args, **kwargs):
         self.subtotal = self.service.price * self.quantity
         super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.service.name} x{self.quantity}"
 
 
 class Payment(models.Model):
@@ -139,145 +155,127 @@ class Payment(models.Model):
         ('transfer', 'Bank Transfer'),
     ]
 
-    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
     bill = models.ForeignKey(Bill, on_delete=models.CASCADE)
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2)
     paid_on = models.DateTimeField(auto_now_add=True)
     payment_mode = models.CharField(max_length=50, choices=PAYMENT_METHODS)
 
     def __str__(self):
-        return f"{self.bill.invoice_no} - ${self.amount_paid}"
+        return f"{self.bill.invoice_no} - ₦{self.amount_paid}"
 
 
-class AuditLog(models.Model):
-    ACTIONS = [
-        ('create', 'Create'),
-        ('update', 'Update'),
-        ('delete', 'Delete'),
-    ]
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
-    action = models.CharField(max_length=10, choices=ACTIONS)
-    model_name = models.CharField(max_length=50)
-    object_id = models.PositiveIntegerField()
-    timestamp = models.DateTimeField(auto_now_add=True)
-    description = models.TextField()
+# ==============================
+# MEDICINES & CATEGORIES
+# ==============================
 
-    def __str__(self):
-        return f"{self.timestamp} - {self.user} - {self.action} {self.model_name} ({self.object_id})"
-
-    class Meta:
-        ordering = ['-timestamp']
-
-
-class Appointment(models.Model):
-    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    doctor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        limit_choices_to={'role': 'doctor'}
-    )
-    date = models.DateField()
-    time = models.TimeField()
-    reason = models.CharField(max_length=200)
-    status = models.CharField(
-        max_length=20,
-        choices=[
-            ('scheduled', 'Scheduled'),
-            ('completed', 'Completed'),
-            ('cancelled', 'Cancelled')
-        ],
-        default='scheduled'
-    )
-
-    def __str__(self):
-        return f"{self.patient} with Dr. {self.doctor} on {self.date}"
-
-    class Meta:
-        unique_together = ('doctor', 'date', 'time')
-        ordering = ['date', 'time']
-
-
-class Medicine(models.Model):
-    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
+class MedicineCategory(models.Model):
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
     name = models.CharField(max_length=100)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    quantity = models.PositiveIntegerField()
-
-    def __str__(self):
-        return self.name
 
     class Meta:
         unique_together = ('hospital', 'name')
 
-
-class PatientVisit(models.Model):
-    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
-    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
-    assigned_doctor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='visits',
-        limit_choices_to={'role': 'doctor'}
-    )
-    assigned_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='assigned_visits',
-        limit_choices_to={'role': 'receptionist'}
-    )
-    status = models.CharField(
-        max_length=20,
-        choices=[
-            ('pending', 'Pending'),
-            ('under_diagnosis', 'Under Diagnosis'),
-            ('lab_requested', 'Lab Requested'),
-            ('lab_completed', 'Lab Completed'),
-            ('radiology_requested', 'Radiology Requested'),
-            ('radiology_completed', 'Radiology Completed'),
-            ('prescribed', 'Prescribed'),
-            ('completed', 'Completed'),
-        ],
-        default='pending'
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
     def __str__(self):
-        return f"{self.patient} - {self.status}"
+        return self.name
+
+
+class Medicine(models.Model):
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    quantity = models.PositiveIntegerField(default=0)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    category = models.ForeignKey(MedicineCategory, null=True, blank=True, on_delete=models.SET_NULL)
 
     class Meta:
-        ordering = ['-created_at']
+        unique_together = ('hospital', 'name')
+
+    def __str__(self):
+        return self.name
 
 
-class LabTestRequest(models.Model):
-    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
+# ==============================
+# PRESCRIPTIONS & STOCK LOGS
+# ==============================
+
+class Prescription(models.Model):
+    STATUS_CHOICES = [('issued', 'Issued'), ('dispensed', 'Dispensed')]
+
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
     visit = models.ForeignKey(PatientVisit, on_delete=models.CASCADE)
     doctor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='lab_requests',
+        related_name="prescriptions_made",
+        limit_choices_to={'role': 'doctor'},
+    )
+    pharmacist = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="prescriptions_filled",
+        limit_choices_to={'role': 'pharmacist'},
+    )
+    medicines = models.TextField()
+    dosage = models.CharField(max_length=100, default="N/A")
+    duration = models.CharField(max_length=100, default="N/A")
+    instructions = models.TextField(default="No special instructions")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='issued')
+    issued_at = models.DateTimeField(auto_now_add=True)
+    dispensed_at = models.DateTimeField(null=True, blank=True)
+    dispensed_notes = models.TextField(blank=True, null=True)
+
+    def __str__(self):
+        return f"Rx for {self.visit.patient}"
+
+
+class StockLog(models.Model):
+    ACTIONS = [('in', 'Stock In'), ('out', 'Stock Out'), ('adjust', 'Adjustment')]
+
+    medicine = models.ForeignKey(Medicine, related_name='stock_logs', on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    action = models.CharField(max_length=10, choices=ACTIONS)
+    quantity = models.IntegerField()
+    notes = models.TextField(blank=True, null=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+
+
+# ==============================
+# LAB & RADIOLOGY
+# ==============================
+
+class LabTestRequest(models.Model):
+    STATUS_CHOICES = [('requested', 'Requested'), ('completed', 'Completed')]
+
+    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
+    visit = models.ForeignKey(PatientVisit, on_delete=models.CASCADE)
+
+    doctor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='lab_tests_requested',
         limit_choices_to={'role': 'doctor'}
     )
+
     lab_technician = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='assigned_labs',
+        related_name='lab_tests_performed',
         limit_choices_to={'role': 'lab'}
     )
+
     test_type = models.CharField(max_length=100)
     notes = models.TextField(blank=True)
     result = models.TextField(blank=True, null=True)
-    status = models.CharField(
-        max_length=20,
-        choices=[('requested', 'Requested'), ('completed', 'Completed')],
-        default='requested'
-    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested')
     requested_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
@@ -286,31 +284,32 @@ class LabTestRequest(models.Model):
 
 
 class RadiologyRequest(models.Model):
+    STATUS_CHOICES = [('requested', 'Requested'), ('completed', 'Completed')]
+
     hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
     visit = models.ForeignKey(PatientVisit, on_delete=models.CASCADE)
+
     doctor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
-        related_name='radiology_requests',
+        related_name='radiology_tests_requested',
         limit_choices_to={'role': 'doctor'}
     )
+
     radiologist = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name='assigned_radiologies',
+        related_name='radiology_tests_performed',
         limit_choices_to={'role': 'radiologist'}
     )
+
     imaging_type = models.CharField(max_length=100)
     notes = models.TextField(blank=True)
     findings = models.TextField(blank=True, null=True)
-    status = models.CharField(
-        max_length=20,
-        choices=[('requested', 'Requested'), ('completed', 'Completed')],
-        default='requested'
-    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='requested')
     requested_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
@@ -318,87 +317,95 @@ class RadiologyRequest(models.Model):
         return f"{self.imaging_type} - {self.status}"
 
 
-# billing/models.py
-
-class Prescription(models.Model):
-    hospital = models.ForeignKey('Hospital', on_delete=models.CASCADE)
-    visit = models.ForeignKey(PatientVisit, on_delete=models.CASCADE)
-    doctor = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        related_name='prescriptions_made',
-        limit_choices_to={'role': 'doctor'}
-    )
-    pharmacist = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='prescriptions_filled',
-        limit_choices_to={'role': 'pharmacist'}
-    )
-
-    medicines = models.TextField()  # allows multiple medicines, one per line
-    dosage = models.CharField(max_length=100, default="N/A")            # ✅ default added
-    duration = models.CharField(max_length=100, default="N/A")          # ✅ default added
-    instructions = models.TextField(default="No special instructions")  # ✅ default added
-
-    status = models.CharField(
-        max_length=20,
-        choices=[('issued', 'Issued'), ('dispensed', 'Dispensed')],
-        default='issued'
-    )
-    issued_at = models.DateTimeField(auto_now_add=True)
-    
-    dispensed_at = models.DateTimeField(null=True, blank=True)
-    dispensed_notes = models.TextField(
-        blank=True,
-        null=True,
-        help_text="Optional: Record of what was actually dispensed"
-    )
-
-    def __str__(self):
-        return f"Rx for {self.visit.patient} by {self.doctor}"
-
-
-from billing.models import Medicine  # or wherever your Medicine model lives
-
-class MedicalRecord(models.Model):
-    patient = models.ForeignKey(
-        Patient, on_delete=models.CASCADE, related_name="medical_history"
-    )
-    doctor = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE
-    )
-    diagnosis = models.TextField()
-    treatment = models.TextField()
-    notes = models.TextField(blank=True, null=True)
-    prescribed_medicines = models.ManyToManyField(
-        Medicine, blank=True, related_name="medical_records"
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"{self.patient.full_name} - {self.diagnosis[:30]}"
-
+# ==============================
+# REPORTS
+# ==============================
 
 class LabReport(models.Model):
-    patient = models.ForeignKey("Patient", on_delete=models.CASCADE, related_name="lab_reports")
-    lab_technician = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+    patient = models.ForeignKey(Patient, related_name="lab_reports", on_delete=models.CASCADE)
+    lab_technician = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
     test_name = models.CharField(max_length=200)
     result = models.TextField()
     date = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
-        return f"{self.test_name} - {self.patient.full_name}"
 
 class RadiologyReport(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     scan_type = models.CharField(max_length=100)
-    report = models.TextField()   # maybe called 'report' instead of 'finding'
+    report = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     radiologist = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
-    def __str__(self):
-        return f"Radiology Report: {self.scan_type} for {self.patient.name}"
+
+# ==============================
+# MEDICAL RECORDS & AUDIT
+# ==============================
+
+class MedicalRecord(models.Model):
+    patient = models.ForeignKey(Patient, related_name="medical_history", on_delete=models.CASCADE)
+    doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    diagnosis = models.TextField()
+    treatment = models.TextField()
+    notes = models.TextField(blank=True, null=True)
+    prescribed_medicines = models.ManyToManyField(Medicine, blank=True, related_name="medical_records")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class AuditLog(models.Model):
+    ACTIONS = [('create', 'Create'), ('update', 'Update'), ('delete', 'Delete')]
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    action = models.CharField(max_length=10, choices=ACTIONS)
+    model_name = models.CharField(max_length=50)
+    object_id = models.PositiveIntegerField()
+    timestamp = models.DateTimeField(auto_now_add=True)
+    description = models.TextField()
+
+    class Meta:
+        ordering = ['-timestamp']
+
+
+# ==============================
+# APPOINTMENTS
+# ==============================
+
+class Appointment(models.Model):
+    STATUS_CHOICES = [
+        ('scheduled', 'Scheduled'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    hospital = models.ForeignKey(Hospital, on_delete=models.CASCADE)
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    doctor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    date = models.DateField()
+    time = models.TimeField()
+    reason = models.CharField(max_length=200)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+
+    class Meta:
+        unique_together = ('doctor', 'date', 'time')
+        ordering = ['date', 'time']
+
+
+# ==============================
+# VITAL SIGNS
+# ==============================
+
+class VitalSign(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    visit = models.ForeignKey(PatientVisit, on_delete=models.CASCADE, null=True, blank=True)
+
+    temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True)
+    pulse = models.PositiveIntegerField(null=True)
+    respiratory_rate = models.PositiveIntegerField(null=True)
+    systolic = models.PositiveIntegerField(null=True)
+    diastolic = models.PositiveIntegerField(null=True)
+    spo2 = models.PositiveIntegerField(null=True)
+
+    recorded_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]

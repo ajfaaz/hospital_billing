@@ -7,6 +7,8 @@ from django.db.models.functions import TruncMonth
 from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import get_template
+from .models import MedicineCategory
+
 
 from xhtml2pdf import pisa
 
@@ -33,6 +35,7 @@ from .models import (
     MedicalRecord,
     LabReport,
     RadiologyReport,
+    VitalSign,
 )
 from .utils import log_action
 
@@ -142,6 +145,17 @@ def patient_list(request):
     if query:
         patients = patients.filter(full_name__icontains=query)
     return render(request, "billing/patient_list.html", {"patients": patients, "query": query})
+
+
+@login_required
+def patient_detail(request, patient_id):
+    """Simple patient detail endpoint — redirect to the EMR page.
+
+    Kept lightweight to avoid adding a new template; callers expecting
+    a patient detail page will be forwarded to the EMR view.
+    """
+    patient = get_object_or_404(Patient, id=patient_id)
+    return redirect("patient_emr", patient_id=patient.id)
 
 
 @login_required
@@ -466,19 +480,59 @@ def message_detail(request, pk):
 
 @login_required
 def add_medical_record(request, patient_id):
+    if request.user.role != "doctor":
+        messages.error(request, "Only doctors can add medical notes.")
+        return redirect("patient_emr", patient_id=patient_id)
+
     patient = get_object_or_404(Patient, id=patient_id)
+    visit_id = request.POST.get("visit_id")
+    visit = None
+
+    if visit_id:
+        visit = PatientVisit.objects.filter(id=visit_id, patient=patient).first()
+
     if request.method == "POST":
-        form = MedicalRecordForm(request.POST)
-        if form.is_valid():
-            record = form.save(commit=False)
-            record.patient = patient
-            record.doctor = request.user
-            record.save()
-            return redirect("patient_emr", patient_id=patient.id)
-            return redirect("patient_emr", patient_id=patient.id)
-    else:
-        form = MedicalRecordForm()
-    return render(request, "billing/add_medical_record.html", {"form": form, "patient": patient})
+        title = request.POST.get("title").strip()
+        notes = request.POST.get("notes").strip()
+
+        MedicalRecord.objects.create(
+            patient=patient,
+            visit=visit,
+            title=title,
+            notes=notes,
+            created_by=request.user,
+        )
+
+        messages.success(request, "Medical note added successfully.")
+        return redirect("patient_emr", patient_id=patient.id)
+
+@login_required
+def add_doctor_note(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+    hospital = request.user.hospital
+
+    visits = PatientVisit.objects.filter(patient=patient, status="active")
+
+    if request.method == "POST":
+        visit_id = request.POST.get("visit_id")
+        notes = request.POST.get("notes")
+
+        visit = get_object_or_404(PatientVisit, id=visit_id)
+
+        MedicalRecord.objects.create(
+            patient=patient,
+            visit=visit,
+            doctor=request.user,
+            notes=notes,
+        )
+
+        messages.success(request, "Doctor note added successfully.")
+        return redirect("patient_emr", patient_id=patient.id)
+
+    return render(request, "billing/doctor_note_add.html", {
+        "patient": patient,
+        "visits": visits,
+    })
 
 
 @login_required
@@ -499,7 +553,24 @@ def patient_emr(request, patient_id):
     medical_records = MedicalRecord.objects.filter(patient=patient).order_by("-created_at")
     lab_reports = LabReport.objects.filter(patient=patient).order_by("-date")
     radiology_reports = RadiologyReport.objects.filter(patient=patient).order_by("-created_at")
-    prescriptions = Prescription.objects.filter(visit__patient=patient).select_related("doctor").order_by("-issued_at")
+    prescriptions = Prescription.objects.filter(
+        visit__patient=patient
+    ).select_related("doctor").order_by("-issued_at")
+    # NEW — load vital signs
+    vital_signs = VitalSign.objects.filter(patient=patient).order_by("-created_at")
+
+    # NEW — counts
+    record_count = medical_records.count()
+    lab_count = lab_reports.count()
+    prescription_count = prescriptions.count()
+
+    # NEW — last visit time
+    last_visit = None
+    if active_visit:
+        last_visit = active_visit.created_at
+    else:
+        last_visit_obj = PatientVisit.objects.filter(patient=patient).order_by("-created_at").first()
+        last_visit = last_visit_obj.created_at if last_visit_obj else None
 
     return render(
         request,
@@ -511,6 +582,13 @@ def patient_emr(request, patient_id):
             "radiology_reports": radiology_reports,
             "prescriptions": prescriptions,
             "active_visit": active_visit,
+            "vital_signs": vital_signs,
+
+            # NEW CONTEXT
+            "record_count": record_count,
+            "lab_count": lab_count,
+            "prescription_count": prescription_count,
+            "last_visit": last_visit,
         },
     )
 
@@ -596,6 +674,73 @@ def dispense_prescription(request, prescription_id):
         messages.warning(request, "This prescription was already dispensed.")
 
     return redirect("pending_prescriptions")
+
+from django.template.loader import render_to_string
+from django.http import HttpResponse
+import tempfile
+
+@login_required
+def export_emr_pdf(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+
+    medical_records = MedicalRecord.objects.filter(patient=patient)
+    lab_reports = LabReport.objects.filter(patient=patient)
+    radiology_reports = RadiologyReport.objects.filter(patient=patient)
+    prescriptions = Prescription.objects.filter(visit__patient=patient)
+    vital_signs = VitalSign.objects.filter(patient=patient)
+
+    html_string = render_to_string("billing/print_emr.html", {
+        "patient": patient,
+        "medical_records": medical_records,
+        "lab_reports": lab_reports,
+        "radiology_reports": radiology_reports,
+        "prescriptions": prescriptions,
+        "vital_signs": vital_signs,
+    })
+
+    pdf_data = None
+    # Try WeasyPrint first (may fail on systems without GTK/Pango libs)
+    try:
+        from weasyprint import HTML
+
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=True) as temp_pdf:
+            HTML(string=html_string).write_pdf(temp_pdf.name)
+
+            temp_pdf.seek(0)
+            pdf_data = temp_pdf.read()
+    except Exception:
+        # Fallback to xhtml2pdf (pisa) which is pure-Python
+        try:
+            from xhtml2pdf import pisa
+            buffer = BytesIO()
+            pisa_status = pisa.CreatePDF(html_string, dest=buffer, encoding="UTF-8")
+            if pisa_status.err:
+                return HttpResponse("PDF generation error", status=500)
+            buffer.seek(0)
+            pdf_data = buffer.getvalue()
+        except Exception:
+            return HttpResponse("PDF generation error: no PDF backend available", status=500)
+
+    response = HttpResponse(pdf_data, content_type='application/pdf')
+    response['Content-Disposition'] = f'inline; filename="EMR_{patient.full_name}.pdf"'
+    return response
+
+
+# =======================================================
+# Autocomplete API Endpoint
+# =======================================================
+
+from django.http import JsonResponse
+
+@login_required
+def medicine_autocomplete(request):
+    q = request.GET.get('q', '').strip()
+    qs = Medicine.objects.filter(name__icontains=q)
+    if hasattr(request.user, "hospital") and request.user.hospital:
+        qs = qs.filter(hospital=request.user.hospital)
+    results = [{"id": m.id, "name": m.name, "price": float(m.price), "qty": m.quantity} for m in qs[:10]]
+    return JsonResponse(results, safe=False)
 
 
 
@@ -914,4 +1059,452 @@ def doctor_prescriptions(request):
     
     return render(request, "billing/doctor_prescriptions.html", {
         "prescriptions": prescriptions
+    })
+
+# =======================================================
+# MEDICINE MANAGEMENT VIEWS
+# =======================================================
+
+from django.core.paginator import Paginator
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import HttpResponse
+from django.contrib import messages
+from .models import Medicine, StockLog
+import csv
+from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+
+@login_required
+def medicine_list(request):
+    hospital = request.user.hospital
+
+    categories = MedicineCategory.objects.filter(hospital=hospital)
+
+    q = request.GET.get("q", "")
+    status = request.GET.get("status", "")
+    selected_category = request.GET.get("category", "all")
+
+    medicines = Medicine.objects.filter(hospital=hospital)
+
+    # Search
+    if q:
+        medicines = medicines.filter(name__icontains=q)
+
+    # Category
+    if selected_category != "all":
+        medicines = medicines.filter(category_id=selected_category)
+
+    # Status filter
+    low_stock_threshold = 10
+    if status == "ok":
+        medicines = medicines.filter(quantity__gt=low_stock_threshold)
+    elif status == "low":
+        medicines = medicines.filter(quantity__gt=0, quantity__lte=low_stock_threshold)
+    elif status == "out":
+        medicines = medicines.filter(quantity=0)
+
+    paginator = Paginator(medicines.order_by("name"), 10)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
+    return render(request, "billing/medicine/medicine_list.html", {
+        "categories": categories,
+        "page_obj": page_obj,
+        "selected_category": selected_category,
+        "low_stock_threshold": low_stock_threshold,
+    })
+
+
+@login_required
+def add_medicine(request):
+    if not request.user.is_pharmacist() and not request.user.is_admin():
+        return redirect("dashboard")
+
+    hospital = request.user.hospital
+    categories = MedicineCategory.objects.filter(hospital=hospital)
+
+    if request.method == "POST":
+        name = request.POST.get("name").strip()
+        price = request.POST.get("price")
+        quantity = request.POST.get("quantity")
+        category_id = request.POST.get("category")
+        
+        category = MedicineCategory.objects.filter(id=category_id, hospital=hospital).first()
+
+        # prevent duplicates
+        if Medicine.objects.filter(hospital=hospital, name__iexact=name).exists():
+            messages.error(request, "Medicine already exists.")
+            return redirect("add_medicine")
+
+        Medicine.objects.create(
+            hospital=hospital,
+            name=name,
+            quantity=quantity,
+            price=price,
+            category=category,
+        )
+
+        messages.success(request, "Medicine added successfully.")
+        return redirect("medicine_list")
+
+    return render(request, "billing/medicine/add_medicine.html", {
+        "categories": categories
+   })
+
+
+
+@login_required
+def edit_medicine(request, med_id):
+    if not request.user.is_pharmacist() and not request.user.is_admin():
+        return redirect("dashboard")
+
+    hospital = request.user.hospital
+
+    medicine = get_object_or_404(Medicine, id=med_id, hospital=hospital)
+    categories = MedicineCategory.objects.filter(hospital=hospital)
+
+    if request.method == "POST":
+        name = request.POST.get("name").strip()
+        price = request.POST.get("price")
+        quantity = request.POST.get("quantity")
+        category_id = request.POST.get("category")
+
+        # Validate category
+        category = MedicineCategory.objects.filter(
+            id=category_id, hospital=hospital
+        ).first()
+
+        # Prevent duplicate names on same hospital (except itself)
+        if Medicine.objects.filter(
+            hospital=hospital,
+            name__iexact=name
+        ).exclude(id=medicine.id).exists():
+            messages.error(request, "A medicine with this name already exists.")
+            return redirect("edit_medicine", med_id=medicine.id)
+
+        # Update safely
+        medicine.name = name
+        medicine.price = price
+        medicine.quantity = quantity
+        medicine.category = category
+        medicine.save()
+
+        messages.success(request, "Medicine updated successfully.")
+        return redirect("medicine_list")
+
+    return render(request, "billing/medicine/edit_medicine.html", {
+        "medicine": medicine,
+        "categories": categories,
+    })
+
+
+@login_required
+def delete_medicine(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk, hospital=request.user.hospital)
+
+    if request.method == "POST":
+        medicine.delete()
+        messages.success(request, "Medicine deleted.")
+        return redirect("medicine_list")
+
+    return render(request, "billing/medicine/delete_medicine_confirmation.html", {
+        "medicine": medicine
+    })
+
+
+@login_required
+def medicine_detail(request, pk):
+    medicine = get_object_or_404(Medicine, pk=pk, hospital=request.user.hospital)
+
+    logs = StockLog.objects.filter(medicine=medicine).order_by("-timestamp")
+
+    return render(request, "billing/medicine/medicine_details.html", {
+        "medicine": medicine,
+        "logs": logs
+    })
+
+
+@login_required
+def stock_in(request, pk):
+    med = get_object_or_404(Medicine, pk=pk, hospital=request.user.hospital)
+
+    if request.method == "POST":
+        qty = int(request.POST.get("quantity"))
+        med.quantity += qty
+        med.save()
+
+        StockLog.objects.create(
+            medicine=med,
+            action="IN",
+            quantity=qty,
+            user=request.user
+        )
+
+        messages.success(request, f"Added {qty} units to stock.")
+        return redirect("medicine_detail", pk=pk)
+
+    return render(request, "billing/medicine/stock_form.html", {
+        "medicine": med,
+        "mode": "in"
+    })
+
+@login_required
+def stock_out(request, pk):
+    med = get_object_or_404(Medicine, pk=pk, hospital=request.user.hospital)
+
+    if request.method == "POST":
+        qty = int(request.POST.get("quantity"))
+
+        if qty > med.quantity:
+            messages.error(request, "Cannot remove more than available stock.")
+            return redirect("medicine_detail", pk=pk)
+
+        med.quantity -= qty
+        med.save()
+
+        StockLog.objects.create(
+            medicine=med,
+            action="OUT",
+            quantity=qty,
+            user=request.user
+        )
+
+        messages.success(request, f"Removed {qty} units from stock.")
+        return redirect("medicine_detail", pk=pk)
+
+    return render(request, "billing/medicine/stock_form.html", {
+        "medicine": med,
+        "mode": "out"
+    })
+
+#@login_required
+def stock_logs_view(request):
+    logs = StockLog.objects.filter(medicine__hospital=request.user.hospital)
+
+    # Filters
+    q = request.GET.get("q", "")
+    med = request.GET.get("med", "")
+    action = request.GET.get("action", "")
+
+    if q:
+        logs = logs.filter(
+            Q(medicine__name__icontains=q) |
+            Q(user__username__icontains=q)
+        )
+
+    if med:
+        logs = logs.filter(medicine__id=med)
+
+    if action in ["IN", "OUT"]:
+        logs = logs.filter(action=action)
+
+    logs = logs.order_by("-timestamp")
+
+    medicines = Medicine.objects.filter(hospital=request.user.hospital)
+
+    return render(request, "billing/medicine/stock_logs.html", {
+        "logs": logs,
+        "medicines": medicines
+    })
+
+@login_required
+def inventory_dashboard(request):
+    meds = Medicine.objects.filter(hospital=request.user.hospital)
+
+    total_medicines = meds.count()
+    low_stock_threshold = 10
+
+    low_stock = meds.filter(quantity__gt=0, quantity__lte=low_stock_threshold).count()
+    out_of_stock = meds.filter(quantity=0).count()
+    total_quantity = meds.aggregate(total=Sum("quantity"))["total"] or 0
+
+    recent_logs = StockLog.objects.filter(
+        medicine__hospital=request.user.hospital
+    ).order_by("-timestamp")[:10]
+
+    return render(request, "billing/pharmacy/inventory_dashboard.html", {
+        "total_medicines": total_medicines,
+        "low_stock": low_stock,
+        "out_of_stock": out_of_stock,
+        "total_quantity": total_quantity,
+        "recent_logs": recent_logs,
+    })
+
+
+# =======================================================
+# EXPORT MEDICINES CSV
+# =======================================================
+
+@login_required
+def export_medicines_csv(request):
+    medicines = Medicine.objects.filter(hospital=request.user.hospital)
+
+    # Apply search / filter
+    q = request.GET.get("q", "")
+    status = request.GET.get("status", "")
+    low_threshold = 10
+
+    if q:
+        medicines = medicines.filter(name__icontains=q)
+
+    if status == "low":
+        medicines = medicines.filter(quantity__gt=0, quantity__lte=low_threshold)
+    elif status == "out":
+        medicines = medicines.filter(quantity=0)
+    elif status == "ok":
+        medicines = medicines.filter(quantity__gt=low_threshold)
+
+    # CSV Output
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="medicine_inventory.csv"'
+
+    writer = csv.writer(response)
+    writer.writerow(["Medicine", "Price", "Quantity"])
+
+    for med in medicines:
+        writer.writerow([med.name, med.price, med.quantity])
+
+    return response
+
+
+# ------------------------------
+# MEDICINE CATEGORY – ADD
+# ------------------------------
+@login_required
+def add_category(request):
+
+    # ---- ROLE CHECK FIX ----
+    if request.user.role not in ["pharmacist", "admin"]:
+        return redirect("dashboard")
+
+    if request.method == "POST":
+        name = request.POST.get("name", "").strip()
+
+        if not name:
+            messages.error(request, "Category name cannot be empty.")
+            return redirect("category_list")
+
+        # Prevent duplicate categories for the same hospital
+        if MedicineCategory.objects.filter(
+            hospital=request.user.hospital,
+            name__iexact=name
+        ).exists():
+            messages.error(request, "Category already exists.")
+            return redirect("category_list")
+
+        # Create category
+        MedicineCategory.objects.create(
+            hospital=request.user.hospital,
+            name=name
+        )
+
+        messages.success(request, "Category added successfully.")
+        return redirect("category_list")   # FIXED
+
+    return render(request, "billing/medicine/category_add.html")  # FIXED PATH
+
+
+@login_required
+def category_list(request):
+    categories = MedicineCategory.objects.filter(hospital=request.user.hospital)
+    return render(request, "billing/medicine/category_list.html", {
+        "categories": categories
+    })
+@login_required
+def category_list(request):
+    categories = MedicineCategory.objects.filter(hospital=request.user.hospital)
+    return render(request, "billing/medicine/category_list.html", {
+        "categories": categories
+    })
+
+
+@login_required
+def edit_category(request, category_id):
+    category = get_object_or_404(
+        MedicineCategory,
+        id=category_id,
+        hospital=request.user.hospital
+    )
+
+    # Access control: only admin & pharmacist
+    if request.user.role not in ["pharmacist", "admin"]:
+        return redirect("dashboard")
+
+    if request.method == "POST":
+        name = request.POST.get("name").strip()
+
+        # Avoid duplicates
+        if MedicineCategory.objects.filter(
+            hospital=request.user.hospital,
+            name__iexact=name
+        ).exclude(id=category.id).exists():
+            messages.error(request, "A category with this name already exists.")
+            return redirect("category_list")
+
+        category.name = name
+        category.save()
+
+        messages.success(request, "Category updated successfully.")
+        return redirect("category_list")
+
+    return render(request, "billing/medicine/edit_category.html", {
+        "category": category
+    })
+
+
+
+@login_required
+def delete_category(request, cat_id):
+    category = get_object_or_404(MedicineCategory, id=cat_id, hospital=request.user.hospital)
+
+    if request.method == "POST":
+        category.delete()
+        messages.success(request, "Category deleted.")
+        return redirect("category_list")
+
+    return render(request, "billing/medicine/delete_category.html", {
+        "category": category
+    })
+
+# ==============================
+# VITAL SIGNS
+# ==============================
+
+@login_required
+def add_vital_sign(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+
+    if request.method == "POST":
+        bp = (request.POST.get("bp") or "").strip()
+        systolic = None
+        diastolic = None
+        if "/" in bp:
+            parts = bp.split("/")
+            try:
+                systolic = int(parts[0].strip())
+            except Exception:
+                systolic = None
+            try:
+                diastolic = int(parts[1].strip())
+            except Exception:
+                diastolic = None
+
+        # try to attach an active visit if available
+        visit = PatientVisit.objects.filter(patient=patient, status="active").first()
+
+        VitalSign.objects.create(
+            patient=patient,
+            visit=visit,
+            systolic=systolic,
+            diastolic=diastolic,
+            pulse=request.POST.get("pulse") or None,
+            temperature=request.POST.get("temp") or None,
+            respiratory_rate=request.POST.get("resp") or None,
+            spo2=request.POST.get("spo2") or None,
+            recorded_by=request.user,
+        )
+        messages.success(request, "Vital signs recorded successfully!")
+        return redirect("patient_emr", patient_id=patient.id)
+
+    return render(request, "billing/add_vitals.html", {
+        "patient": patient,
     })

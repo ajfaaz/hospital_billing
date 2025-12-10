@@ -1,100 +1,362 @@
-{% extends "base.html" %}
+{% extends "base_dashboard.html" %}
 {% load static %}
 
+{% block title %}EMR – {{ patient.full_name }}{% endblock %}
+
 {% block content %}
-<div class="container mt-4">
-  <h3>Electronic Medical Record (EMR) for {{ patient.full_name }}</h3>
+<div class="container-fluid mt-4">
+    <div class="row">
 
-  <!-- ========== Medical History ========== -->
-  <h4 class="mt-4">Medical History</h4>
-  {% if user.role == "doctor" %}
-  <a href="{% url 'add_medical_record' patient.id %}" class="btn btn-primary mb-3">+ Add Medical Record</a>
-  {% endif %}
-  {% for record in medical_records %}
-  <div class="card mb-2 p-3">
-    <strong>{{ record.diagnosis }}</strong> — {{ record.treatment }}
-    <small class="text-muted d-block">By Dr. {{ record.doctor.username }} | {{ record.created_at|date:"M d, Y H:i" }}</small>
-  </div>
-  {% empty %}
-  <div class="alert alert-info">No medical records found.</div>
-  {% endfor %}
+        <!-- ================================================================= -->
+        <!-- LEFT SIDE: Patient Card + Buttons + Quick Summary + Export Button -->
+        <!-- ================================================================= -->
+        <div class="col-md-4">
 
-  <!-- ========== Lab Reports ========== -->
-  <h4 class="mt-5">Lab Reports</h4>
-  {% if user.role == "lab_technician" %}
-  <a href="{% url 'add_lab_report' patient.id %}" class="btn btn-primary mb-3">+ Add Lab Report</a>
-  {% endif %}
-  {% for report in lab_reports %}
-  <div class="card mb-2 p-3">
-    <strong>{{ report.test_name }}:</strong> {{ report.result }}
-    <small class="text-muted d-block">By {{ report.lab_technician.username }} | {{ report.date|date:"M d, Y" }}</small>
-  </div>
-  {% empty %}
-  <div class="alert alert-info">No lab reports available.</div>
-  {% endfor %}
+            <!-- PATIENT INFO CARD -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body d-flex">
 
-  <!-- ========== Radiology Reports ========== -->
-  <h4 class="mt-5">Radiology Reports</h4>
-  {% if user.role == "radiologist" %}
-  <a href="{% url 'add_radiology_report' patient.id %}" class="btn btn-primary mb-3">+ Add Radiology Report</a>
-  {% endif %}
-  {% for report in radiology_reports %}
-  <div class="card mb-2 p-3">
-    <strong>{{ report.test_type }}</strong> — {{ report.findings }}
-    <small class="text-muted d-block">By {{ report.radiologist.username }} | {{ report.created_at|date:"M d, Y" }}</small>
-  </div>
-  {% empty %}
-  <div class="alert alert-info">No radiology reports available.</div>
-  {% endfor %}
+                    <img src="{% static 'img/profile_placeholder.png' %}"
+                         class="rounded-circle me-3"
+                         width="70" height="70"
+                         alt="Profile picture for {{ patient.full_name }}">
 
-  <!-- ========== Prescriptions ========== -->
-  <h4 class="mt-5">Prescriptions</h4>
-  {% if user.role == "doctor" %}
-  <a href="{% url 'add_prescription' patient.id %}" class="btn btn-primary mb-3"> ➕ Add Prescription </a>
-  {% endif %}
+                    <div>
+                        <h4 class="mb-1">{{ patient.full_name }}</h4>
 
-  <form method="POST">
-    {% csrf_token %}
+                        <div class="small text-muted">
+                            <strong>Patient ID:</strong> {{ patient.id }}<br>
+                            <strong>DOB:</strong> {{ patient.date_of_birth }}<br>
+                            <strong>Phone:</strong> {{ patient.phone }}<br>
+                            <strong>Hospital:</strong> {{ patient.hospital.name }}
+                        </div>
 
-    <div class="form-group">
-      <label>Medicines (one per line)</label>
-      <textarea name="medicines" class="form-control" rows="4"
-        placeholder="Paracetamol 500mg x 2&#x0a;Amoxicillin 250mg x 3"></textarea>
+                        <div class="mt-2">
+                            {% if active_visit %}
+                                <span class="badge bg-success">Active Visit</span>
+                            {% else %}
+                                <span class="badge bg-secondary">No Active Visit</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#addNoteModal"
+                       class="btn btn-primary btn-sm"><i class="bi bi-journal-plus"></i> Add Note</a>
+
+                    <a href="{% url 'add_prescription' patient.id %}"
+                       class="btn btn-outline-primary btn-sm"><i class="bi bi-capsule"></i> Prescribe</a>
+
+                    <a href="{% url 'add_medical_record' patient.id %}"
+                       class="btn btn-secondary btn-sm"><i class="bi bi-file-earmark-plus"></i> Add Record</a>
+                </div>
+            </div>
+
+            <!-- QUICK SUMMARY CARD -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header"><strong>Quick Summary</strong></div>
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col">
+                            <h4>{{ record_count }}</h4>
+                            <small class="text-muted">Records</small>
+                        </div>
+                        <div class="col">
+                            <h4>{{ lab_count }}</h4>
+                            <small class="text-muted">Labs</small>
+                        </div>
+                        <div class="col">
+                            <h4>{{ prescription_count }}</h4>
+                            <small class="text-muted">Prescriptions</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRINT / EXPORT BUTTON: At the bottom of the left column -->
+            <div class="d-grid">
+                <a href="{% url 'export_emr_pdf' patient.id %}" 
+                   target="_blank" 
+                   rel="noopener noreferrer"
+                   class="btn btn-outline-secondary">
+                    <i class="bi bi-printer"></i> Print / Export EMR
+                </a>
+            </div>
+
+        </div>
+
+        <!-- ================================================================= -->
+        <!-- CENTER SECTION: TABS + CONTENT -->
+        <!-- ================================================================= -->
+        <div class="col-md-8">
+
+            <!-- Tabs -->
+            <ul class="nav nav-tabs mb-4" id="emrTabs">
+                <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#history">Medical History</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes">Doctor Notes</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#vitals">Vital Signs</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#labs">Lab Reports</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#radiology">Radiology</button></li>
+                <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#prescriptions">Prescriptions</button></li>
+            </ul>
+
+            <div class="tab-content">
+
+                <!-- ============================================================ -->
+                <!-- TAB 1: MEDICAL HISTORY -->
+                <!-- ============================================================ -->
+                <div class="tab-pane fade show active" id="history">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0">Medical History</h5>
+                        </div>
+                        <div class="card-body">
+
+                            {% if medical_records %}
+                                <ul class="timeline">
+                                    {% for rec in medical_records %}
+                                    <li class="timeline-item mb-4">
+                                        <span class="timeline-point bg-primary"></span>
+                                        <div class="timeline-event">
+                                            <h6>{{ rec.title }}</h6>
+                                            <p class="text-muted small">{{ rec.created_at|date:"M d, Y H:i" }}</p>
+                                            <p>{{ rec.notes }}</p>
+                                        </div>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="text-muted text-center">No medical history available.</p>
+                            {% endif %}
+
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- TAB 2: DOCTOR NOTES -->
+                <!-- ============================================================ -->
+                <div class="tab-pane fade" id="notes">
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header d-flex justify-content-between">
+                            <h5><i class="bi bi-journal-text me-2"></i>Doctor Notes</h5>
+
+                            {% if user.role == "doctor" %}
+                            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addNoteModal">
+                                <i class="bi bi-plus-lg"></i> Add Note
+                            </button>
+                            {% endif %}
+                        </div>
+
+                        <div class="card-body">
+                            {% if medical_records %}
+                                {% for record in medical_records %}
+                                <div class="card mb-3 shadow-sm">
+                                    <div class="card-header d-flex justify-content-between">
+                                        <span><i class="bi bi-person-badge"></i> Dr. {{ record.doctor.get_full_name }}</span>
+                                        <small class="text-muted">{{ record.created_at|date:"M d, Y H:i" }}</small>
+                                    </div>
+                                    <div class="card-body">
+                                        <p>{{ record.notes|linebreaks }}</p>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted text-center">No notes recorded yet.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- TAB 3: VITAL SIGNS -->
+                <!-- ============================================================ -->
+                <div class="tab-pane fade" id="vitals">
+
+                    <div class="d-flex justify-content-between mb-3">
+                        <h5>Vital Signs</h5>
+
+                        <a href="{% url 'add_vital_sign' patient.id %}" class="btn btn-primary btn-sm">
+                            <i class="bi bi-plus-lg"></i> Add Vital Signs
+                        </a>
+                    </div>
+
+                    {% if vital_signs %}
+                    <div class="list-group">
+                        {% for v in vital_signs %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between">
+                                <strong>{{ v.created_at|date:"M d, Y H:i" }}</strong>
+                                <small class="text-muted">By {{ v.recorded_by.get_full_name }}</small>
+                            </div>
+
+                            <div class="row mt-2">
+                                <div class="col-md-4"><strong>BP:</strong> {{ v.blood_pressure }}</div>
+                                <div class="col-md-4"><strong>Pulse:</strong> {{ v.pulse }}</div>
+                                <div class="col-md-4"><strong>Temp:</strong> {{ v.temperature }}°C</div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4"><strong>Resp:</strong> {{ v.respiratory_rate }}</div>
+                                <div class="col-md-4"><strong>SPO₂:</strong> {{ v.spo2 }}%</div>
+                                <div class="col-md-4"><strong>Weight:</strong> {{ v.weight }} kg</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                        <p class="text-muted">No vital signs recorded yet.</p>
+                    {% endif %}
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- TAB 4: LAB REPORTS -->
+                <!-- ============================================================ -->
+                <div class="tab-pane fade" id="labs">
+                    <div class="card shadow-sm">
+                        <div class="card-header"><h5>Lab Reports</h5></div>
+                        <div class="card-body">
+
+                            {% if lab_reports %}
+                            <div class="list-group">
+                                {% for lab in lab_reports %}
+                                <div class="list-group-item">
+                                    <strong>{{ lab.test_name }}</strong>
+
+                                    <span class="text-muted small float-end">{{ lab.date|date:"M d, Y" }}</span>
+
+                                    <p>{{ lab.result_summary }}</p>
+
+                                    {% if lab.file %}
+                                    <a href="{{ lab.file.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-file-earmark"></i> View Report
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                            {% else %}
+                                <p class="text-muted text-center">No lab reports available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- TAB 5: RADIOLOGY -->
+                <!-- ============================================================ -->
+                <div class="tab-pane fade" id="radiology">
+                    <div class="card shadow-sm">
+                        <div class="card-header"><h5>Radiology</h5></div>
+                        <div class="card-body">
+
+                            {% if radiology_reports %}
+                                {% for r in radiology_reports %}
+                                <div class="mb-3 border-bottom pb-3">
+
+                                    <strong>{{ r.title }}</strong>
+                                    <span class="text-muted small float-end">{{ r.created_at|date:"M d, Y" }}</span>
+
+                                    <p>{{ r.findings }}</p>
+
+                                    {% if r.image %}
+                                    <a href="{{ r.image.url }}" target="_blank" rel="noopener noreferrer">
+                                        <img src="{{ r.image.url }}" class="img-fluid rounded shadow-sm" style="max-height:200px;" loading="lazy">
+                                    </a>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted text-center">No radiology results available.</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================ -->
+                <!-- TAB 6: PRESCRIPTIONS -->
+                <!-- ============================================================ -->
+                <div class="tab-pane fade" id="prescriptions">
+                    <div class="card shadow-sm">
+                        <div class="card-header"><h5>Prescriptions</h5></div>
+                        <div class="card-body">
+
+                            {% if prescriptions %}
+                                {% for p in prescriptions %}
+                                <div class="border-bottom mb-3 pb-3">
+                                    <strong>{{ p.medicine_name }}</strong>
+
+                                    <span class="text-muted small float-end">
+                                        {{ p.issued_at|date:"M d, Y" }} – Dr. {{ p.doctor.get_full_name }}
+                                    </span>
+
+                                    <div class="mt-2">
+                                        <span class="badge bg-secondary">Dose: {{ p.dosage }}</span>
+                                        <span class="badge bg-info text-dark">Duration: {{ p.duration }}</span>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <p class="text-muted text-center">No prescriptions found.</p>
+                            {% endif %}
+
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
     </div>
-
-    <div class="form-group">
-      <label>Dosage</label>
-      <input type="text" name="dosage" class="form-control" placeholder="3 times daily">
-    </div>
-
-    <div class="form-group">
-      <label>Duration</label>
-      <input type="text" name="duration" class="form-control" placeholder="5 days">
-    </div>
-
-    <div class="form-group">
-      <label>Instructions</label>
-      <textarea name="instructions" class="form-control" rows="3" placeholder="E.g., Take after meals"></textarea>
-    </div>
-
-    <button class="btn btn-success">Submit Prescription</button>
-  </form>
-
-  {% for prescription in patient.visits.last.prescription_set.all %}
-  <div class="card mb-2 p-3">
-    <strong>{{ prescription.medicines }}</strong> — {{ prescription.dosage }}
-    <small class="text-muted d-block">
-      Issued by Dr. {{ prescription.doctor.username }} | {{ prescription.issued_at|date:"M d, Y H:i" }} |
-      Status: 
-      {% if prescription.status == 'dispensed' %}
-        <span class="badge bg-success">Dispensed</span>
-      {% else %}
-        <span class="badge bg-warning text-dark">Issued</span>
-      {% endif %}
-    </small>
-  </div>
-  {% empty %}
-  <div class="alert alert-info">No prescriptions yet.</div>
-  {% endfor %}
 </div>
+
+<!-- Timeline style -->
+<style>
+.timeline { list-style:none; padding-left:0; position:relative; }
+.timeline:before { content:""; position:absolute; left:15px; top:0; bottom:0; width:2px; background:#dee2e6; }
+.timeline-item { position:relative; padding-left:40px; }
+.timeline-point {
+    width:12px; height:12px; border-radius:50%; position:absolute; left:9px; top:5px;
+}
+.timeline-event { background:#f8f9fa; padding:10px; border-radius:5px; }
+</style>
+
 {% endblock %}
+
+<!-- ============================================================== -->
+<!-- Doctor Notes Modal -->
+<!-- ============================================================== -->
+<div class="modal fade" id="addNoteModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <form method="post" action="{% url 'add_medical_record' patient.id %}" class="modal-content">
+            {% csrf_token %}
+
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-journal-plus me-2"></i>Add Doctor Note</h5>
+                <button class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input required name="title" class="form-control" placeholder="Diagnosis, Observation, etc.">
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Notes</label>
+                    <textarea name="notes" rows="5" class="form-control" required></textarea>
+                </div>
+
+                {% if active_visit %}
+                <input type="hidden" name="visit_id" value="{{ active_visit.id }}">
+                {% endif %}
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary">Save Note</button>
+            </div>
+        </form>
+    </div>
+</div>
