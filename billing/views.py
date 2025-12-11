@@ -38,6 +38,7 @@ from .models import (
     VitalSign,
 )
 from .utils import log_action
+import json
 
 from messaging.forms import MessageForm
 from messaging.models import Message
@@ -546,31 +547,26 @@ def patient_history(request, patient_id):
 def patient_emr(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
 
-    active_visit = PatientVisit.objects.filter(
-        patient=patient, status="active"
-    ).first()
+    # Get visits correctly ordered
+    visits = PatientVisit.objects.filter(patient=patient).order_by("-created_at", "-id")
 
+    # Determine which visit is active or selected
+    visit_id = request.GET.get("visit")
+    if visit_id:
+        active_visit = get_object_or_404(PatientVisit, id=visit_id, patient=patient)
+    else:
+        active_visit = visits.first()
+
+    # Fetch related data
     medical_records = MedicalRecord.objects.filter(patient=patient).order_by("-created_at")
+
+    vital_signs = VitalSign.objects.filter(
+        visit__patient=patient
+    ).order_by("created_at")
+
     lab_reports = LabReport.objects.filter(patient=patient).order_by("-date")
     radiology_reports = RadiologyReport.objects.filter(patient=patient).order_by("-created_at")
-    prescriptions = Prescription.objects.filter(
-        visit__patient=patient
-    ).select_related("doctor").order_by("-issued_at")
-    # NEW — load vital signs
-    vital_signs = VitalSign.objects.filter(patient=patient).order_by("-created_at")
-
-    # NEW — counts
-    record_count = medical_records.count()
-    lab_count = lab_reports.count()
-    prescription_count = prescriptions.count()
-
-    # NEW — last visit time
-    last_visit = None
-    if active_visit:
-        last_visit = active_visit.created_at
-    else:
-        last_visit_obj = PatientVisit.objects.filter(patient=patient).order_by("-created_at").first()
-        last_visit = last_visit_obj.created_at if last_visit_obj else None
+    prescriptions = Prescription.objects.filter(visit__patient=patient).select_related("doctor", "visit").order_by("-issued_at")
 
     return render(
         request,
@@ -582,16 +578,37 @@ def patient_emr(request, patient_id):
             "radiology_reports": radiology_reports,
             "prescriptions": prescriptions,
             "active_visit": active_visit,
+            "visits": visits,
             "vital_signs": vital_signs,
-
-            # NEW CONTEXT
-            "record_count": record_count,
-            "lab_count": lab_count,
-            "prescription_count": prescription_count,
-            "last_visit": last_visit,
         },
     )
 
+@login_required
+def load_note_template(request, key):
+    from .doctor_templates import DOCTOR_NOTE_TEMPLATES  # If stored separately
+
+    template = DOCTOR_NOTE_TEMPLATES.get(key)
+
+    if not template:
+        return JsonResponse({"template": ""})
+
+    return JsonResponse({"template": template})
+
+@login_required
+def add_emr_note(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+
+    if request.method == "POST":
+        notes = request.POST.get("notes")
+        MedicalRecord.objects.create(
+            patient=patient,
+            doctor=request.user,
+            notes=notes,
+            note_type="doctor_note",
+        )
+
+        messages.success(request, "Doctor note added.")
+        return redirect("patient_emr", patient_id=patient.id)
 
 
 @login_required
@@ -651,6 +668,22 @@ def create_prescription(request, visit_id):
         form = PrescriptionForm(initial={"visit": visit, "doctor": request.user})
 
     return render(request, "billing/prescriptions/create_prescription.html", {"form": form, "visit": visit})
+
+
+@login_required
+def print_visit_prescriptions(request, visit_id):
+    """Render a simple printable page showing prescriptions for a visit."""
+    visit = get_object_or_404(PatientVisit, id=visit_id)
+    prescriptions = Prescription.objects.filter(visit=visit).select_related("doctor")
+
+    return render(
+        request,
+        "billing/print_visit_prescriptions.html",
+        {
+            "visit": visit,
+            "prescriptions": prescriptions,
+        },
+    )
 
 @login_required
 def pending_prescriptions(request):
@@ -1508,3 +1541,58 @@ def add_vital_sign(request, patient_id):
     return render(request, "billing/add_vitals.html", {
         "patient": patient,
     })
+
+
+# ------------------------------------------------------------------
+# Doctor note templates (global constant)
+# ------------------------------------------------------------------
+DOCTOR_NOTE_TEMPLATES = {
+    "soap":
+    """**S: Subjective**
+- Chief Complaint: 
+- History of Present Illness: 
+- Review of Systems: 
+
+**O: Objective**
+- Vital Signs: 
+- Physical Examination: 
+
+**A: Assessment**
+- Working Diagnosis: 
+
+**P: Plan**
+- Labs/Imaging Requested:
+- Medications:
+- Follow-up:""",
+
+    "hpi":
+    """**History of Present Illness**
+- Onset:
+- Duration:
+- Severity:
+- Quality:
+- Aggravating/Relieving Factors:
+- Associated Symptoms:
+- Previous Episodes:""",
+
+    "assessment":
+    """**Assessment**
+- Primary Diagnosis:
+- Differential Diagnosis #1: 
+- Differential Diagnosis #2:
+- Summary:""",
+
+    "plan":
+    """**Management Plan**
+- Medications:
+- Investigations:
+- Procedures:
+- Advice/Education:
+- Follow-up:""",
+
+    "quick":
+    """**Quick Note**
+- Summary:
+- Action Taken:
+- Next Steps:""",
+}

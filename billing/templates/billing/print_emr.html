@@ -97,10 +97,10 @@
 <div class="section">
     <h2>Radiology</h2>
     {% if radiology_reports %}
-        {% for r in radiology_reports %}
-            <h4>{{ r.title }}</h4>
+        {% for r in radiology_reports %} 
+            <h4>{{ r.scan_type }}</h4>
             <p><i>{{ r.created_at|date:"M d, Y" }}</i></p>
-            <p>{{ r.findings }}</p>
+            <p>{{ r.report }}</p>
             <hr>
         {% endfor %}
     {% else %}

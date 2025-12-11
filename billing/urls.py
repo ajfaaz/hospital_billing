@@ -21,7 +21,9 @@ urlpatterns = [
     "patients/<int:patient_id>/vitals/add/",
     views.add_vital_sign,     # FIXED
     name="add_vital_sign"
-),
+     ),
+    path("emr/template/<str:key>/", views.load_note_template, name="load_note_template"),
+    path("emr/<int:patient_id>/add-note/", views.add_emr_note, name="add_emr_note"),
 
 
     # Appointments
@@ -101,6 +103,9 @@ urlpatterns = [
     path('medicines/stock-logs/', views.stock_logs_view, name='stock_logs'),
     path('medicines/export/csv/', views.export_medicines_csv, name='export_medicines_csv'),
     path('pharmacy/', views.inventory_dashboard, name='inventory_dashboard'),
+
+    # Print prescriptions per visit
+    path('visits/<int:visit_id>/prescriptions/print/', views.print_visit_prescriptions, name='print_visit_prescriptions'),
 
     # --- CATEGORY MANAGEMENT ROUTES ---
     path("categories/", views.category_list, name="category_list"),

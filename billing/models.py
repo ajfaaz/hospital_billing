@@ -346,6 +346,7 @@ class MedicalRecord(models.Model):
     doctor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     diagnosis = models.TextField()
     treatment = models.TextField()
+    note_type = models.CharField(max_length=50, default="general") 
     notes = models.TextField(blank=True, null=True)
     prescribed_medicines = models.ManyToManyField(Medicine, blank=True, related_name="medical_records")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -396,16 +397,19 @@ class Appointment(models.Model):
 class VitalSign(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     visit = models.ForeignKey(PatientVisit, on_delete=models.CASCADE, null=True, blank=True)
-
-    temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True)
-    pulse = models.PositiveIntegerField(null=True)
-    respiratory_rate = models.PositiveIntegerField(null=True)
-    systolic = models.PositiveIntegerField(null=True)
-    diastolic = models.PositiveIntegerField(null=True)
-    spo2 = models.PositiveIntegerField(null=True)
-
     recorded_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
+    
+    heart_rate = models.IntegerField(null=True, blank=True)
+    blood_pressure_systolic = models.IntegerField(null=True, blank=True)
+    blood_pressure_diastolic = models.IntegerField(null=True, blank=True)
+    temperature = models.DecimalField(max_digits=4, decimal_places=1, null=True, blank=True)
+    respiratory_rate = models.IntegerField(null=True, blank=True)
+    spo2 = models.IntegerField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Vitals for {self.patient} on {self.created_at.strftime('%Y-%m-%d %H:%M')}"

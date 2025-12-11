@@ -5,116 +5,40 @@
 
 <div class="container mt-4">
 
-    <!-- Patient Header -->
     <div class="row mb-4">
-        <div class="col-md-4">
-            <h4>{{ patient.full_name }}</h4>
-            <p class="text-muted">
-                DOB: {{ patient.date_of_birth }}<br>
-                Phone: {{ patient.phone_number }}
-            </p>
-
-            <!-- Quick Buttons -->
-            <div class="d-flex gap-2 mt-3">
-                <a href="{% url 'add_doctor_note' patient.id %}" class="btn btn-primary btn-sm">Add Note</a>
-
-                <a href="{% url 'add_prescription' patient.id %}" class="btn btn-secondary btn-sm">Prescribe</a>
-
-                <a href="{% url 'add_vital_sign' patient.id %}" class="btn btn-info btn-sm">Add Vitals</a>
-            </div>
-
-            <!-- Quick Summary -->
-            <div class="card mt-3">
-                <div class="card-body py-2">
-                    <strong>Quick Summary</strong>
-                    <div class="row text-center mt-2">
-                        <div class="col">
-                            <h5>{{ record_count }}</h5>
-                            <small>Records</small>
-                        </div>
-                        <div class="col">
-                            <h5>{{ lab_count }}</h5>
-                            <small>Labs</small>
-                        </div>
-                        <div class="col">
-                            <h5>{{ prescription_count }}</h5>
-                            <small>Prescriptions</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-        </div>
-
-        <!-- MAIN EMR COLUMN -->
-        <div class="col-md-8">
-
-            <!-- Single Correct Print Button -->
-            <div class="text-end mb-3">
-                <a href="{% url 'export_emr_pdf' patient.id %}" class="btn btn-outline-dark btn-sm">
-                    <i class="bi bi-printer"></i> Print / Export EMR
-                </a>
-            </div>
-
-            <!-- EMR Tabs -->
-            <ul class="nav nav-tabs mb-3" id="emrTabs">
-                <li class="nav-item">
-                    <a class="nav-link active" data-bs-toggle="tab" href="#history">Medical History</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#notes">Doctor Notes</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#vitals">Vital Signs</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#labs">Lab Reports</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#radiology">Radiology</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" data-bs-toggle="tab" href="#prescriptions">Prescriptions</a>
-                </li>
-            </ul>
-
-            <!-- TAB CONTENT -->
-            <div class="tab-content">
-
-                <!-- MEDICAL RECORDS -->
-                <div id="history" class="tab-pane fade show active">
-                    {% include "billing/emr_sections/medical_history.html" %}
-                </div>
-
-                <!-- DOCTOR NOTES -->
-                <div id="notes" class="tab-pane fade">
-                    {% include "billing/emr_sections/doctor_notes.html" %}
-                </div>
-
-                <!-- VITAL SIGNS -->
-                <div id="vitals" class="tab-pane fade">
-                    {% include "billing/emr_sections/vital_signs.html" %}
-                </div>
-
-                <!-- LAB REPORTS -->
-                <div id="labs" class="tab-pane fade">
-                    {% include "billing/emr_sections/lab_reports.html" %}
-                </div>
-
-                <!-- RADIOLOGY -->
-                <div id="radiology" class="tab-pane fade">
-                    {% include "billing/emr_sections/radiology.html" %}
-                </div>
-
-                <!-- PRESCRIPTIONS -->
-                <div id="prescriptions" class="tab-pane fade">
-                    {% include "billing/emr_sections/prescriptions.html" %}
-                </div>
-
-            </div>
-
+        <div class="col-12">
+            <h4>Patients</h4>
+            <p class="text-muted">Search and manage patients in your hospital.</p>
         </div>
     </div>
+
+    <div class="row">
+        <div class="col-12">
+            {% if patients %}
+                <div class="list-group">
+                    {% for patient in patients %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ patient.full_name }}</strong>
+                            <div class="small text-muted">DOB: {{ patient.date_of_birth }} — Phone: {{ patient.phone_number }}</div>
+                        </div>
+
+                        <div class="btn-group">
+                            <a href="{% url 'patient_emr' patient.id %}" class="btn btn-outline-primary btn-sm">View EMR</a>
+                            <a href="{% url 'add_doctor_note' patient.id %}" class="btn btn-primary btn-sm">Add Note</a>
+                            <a href="{% url 'add_prescription' patient.id %}" class="btn btn-secondary btn-sm">Prescribe</a>
+                            <a href="{% url 'add_vital_sign' patient.id %}" class="btn btn-info btn-sm">Add Vitals</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-muted">No patients found.</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
 </div>
 
 {% endblock %}

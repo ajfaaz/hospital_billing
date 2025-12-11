@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}Prescriptions - Visit {{ visit.id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="text-center mb-4">
+        <h3>Prescriptions for Visit {{ visit.id }}</h3>
+        <p class="small text-muted">Patient: {{ visit.patient.full_name }} — Doctor: {{ visit.doctor.get_full_name }}</p>
+    </div>
+
+    {% if prescriptions %}
+        <div class="list-group">
+            {% for p in prescriptions %}
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <strong>{{ p.medicine_name }}</strong>
+                    <small class="text-muted">{{ p.issued_at|date:"M d, Y" }}</small>
+                </div>
+                <div class="small text-muted mt-1">
+                    <div><strong>Dosage:</strong> {{ p.dosage }}</div>
+                    <div><strong>Frequency:</strong> {{ p.frequency }}</div>
+                    <div><strong>Duration:</strong> {{ p.duration }}</div>
+                    <div><strong>Notes:</strong> {{ p.notes|default:"-" }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <p class="text-muted">No prescriptions for this visit.</p>
+    {% endif %}
+
+    <div class="text-end mt-4">
+        <button class="btn btn-primary" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+    </div>
+</div>
+{% endblock %}
