@@ -16,15 +16,88 @@ urlpatterns = [
     path('patients/<int:patient_id>/', views.patient_detail, name='patient_detail'),
     path('patients/<int:patient_id>/emr/', views.patient_emr, name='patient_emr'),
     path('patients/<int:patient_id>/lab/add/', views.add_lab_report, name='add_lab_report'),
-    path("patients/<int:patient_id>/emr/print/", views.export_emr_pdf, name="export_emr_pdf"),
-    path(
-    "patients/<int:patient_id>/vitals/add/",
-    views.add_vital_sign,     # FIXED
-    name="add_vital_sign"
-     ),
+    path("patients/<int:patient_id>/emr/print/", views.export_emr_pdf, name="export_emr_pdf"),    
     path("emr/template/<str:key>/", views.load_note_template, name="load_note_template"),
     path("emr/<int:patient_id>/add-note/", views.add_emr_note, name="add_emr_note"),
 
+    # Vital Signs
+    path(
+        "patients/<int:patient_id>/vitals/graphs/",
+        views.patient_vitals_graphs,
+        name="patient_vitals_graphs",
+    ),
+    path(
+        "patients/<int:patient_id>/vitals/add/",
+        views.add_vital_sign,     # FIXED
+        name="add_vital_sign"
+    ),
+    # Vital alert actions
+    path(
+        "alerts/<int:alert_id>/acknowledge/",
+        views.acknowledge_vital_alert,
+        name="acknowledge_vital_alert",
+    ),
+    path(
+        "alerts/<int:alert_id>/resolve/",
+        views.resolve_vital_alert,
+        name="resolve_vital_alert",
+    ),
+
+    path(
+        "doctor/alerts/",
+        views.doctor_alert_dashboard,
+        name="doctor_alert_dashboard"
+    ),
+
+    path(
+        "app/alerts/",
+        views.admin_alert_dashboard,
+        name="admin_alert_dashboard"
+    ),
+
+    path(
+        "app/sla/edit/",
+        views.hospital_sla_settings,
+        name="hospital_sla_settings"
+    ),
+
+    path(
+        "app/sla/settings/",
+        views.sla_settings,
+        name="sla_settings"
+    ),
+
+    path(
+        "app/sla/doctors/",
+        views.doctor_sla_dashboard,
+        name="doctor_sla_dashboard"
+    ),
+
+    path(
+        "app/doctors/<int:doctor_id>/sla/",
+        views.doctor_scorecard,
+        name="doctor_sla_scorecard"
+    ),
+
+    path(
+        "app/sla/departments/",
+        views.department_sla_dashboard,
+        name="department_sla_dashboard"
+    ),
+
+    path(
+        "doctor/sla/",
+        views.doctor_sla_self_view,
+        name="doctor_sla_self"
+    ),
+
+    path(
+        "admin/sla/leaderboard/",
+        views.doctor_sla_leaderboard,
+        name="doctor_sla_leaderboard"
+    ),
+ 
+    
 
     # Appointments
     path('appointments/', views.appointment_list, name='appointment_list'),
@@ -114,4 +187,3 @@ urlpatterns = [
     path("categories/<int:cat_id>/delete/", views.delete_category, name="delete_category"),
 
 ]
-

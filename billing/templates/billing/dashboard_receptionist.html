@@ -1,30 +1,121 @@
 {% extends "base.html" %}
+
 {% block content %}
 <div class="container-fluid">
   <div class="row">
+
     <!-- Sidebar -->
     <nav class="col-md-2 d-none d-md-block bg-light sidebar">
-      <div class="sidebar-sticky">
+      <div class="sidebar-sticky pt-3">
         <ul class="nav flex-column">
-          <li class="nav-item"><a class="nav-link" href="{% url 'receptionist_dashboard' %}">🏠 Home</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'inbox' %}">📥 Inbox {% if unread_count > 0 %}<span class="badge badge-danger">{{ unread_count }}</span>{% endif %}</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'compose_message' %}">✉️ Compose</a></li>
 
+          <li class="nav-item">
+            <a class="nav-link active" href="{% url 'receptionist_dashboard' %}">
+              🏠 Dashboard
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inbox' %}">
+              📥 Inbox
+              {% if unread_count > 0 %}
+                <span class="badge badge-danger">{{ unread_count }}</span>
+              {% endif %}
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'compose_message' %}">
+              ✉️ Compose
+            </a>
+          </li>
 
           <hr>
-          <li class="nav-item"><strong>Messages</strong></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'inbox' %}">📥 Inbox</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'sent_messages' %}">📤 Sent</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'compose_message' %}">✉️ Compose</a></li>
+
+          <li class="nav-item font-weight-bold text-muted px-3">
+            PATIENTS
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'create_patient' %}">
+              ➕ Create Patient
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'patient_list' %}">
+              📋 Patient List
+            </a>
+          </li>
+
         </ul>
       </div>
     </nav>
 
-    <!-- Main content -->
+    <!-- Main Content -->
     <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
-      <h2>Doctor Dashboard</h2>
-      <p>Welcome {{ user.full_name }}! Manage appointments, patients, and messages here.</p>
+
+      <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+        <h2>Receptionist Dashboard</h2>
+      </div>
+
+      <p class="text-muted">
+        Welcome <strong>{{ user.full_name }}</strong>.  
+        You can register patients, manage appointments, and communicate with staff.
+      </p>
+
+      <!-- Action Cards -->
+      <div class="row mt-4">
+
+        <!-- Create Patient -->
+        <div class="col-md-4">
+          <div class="card shadow-sm mb-4">
+            <div class="card-body">
+              <h5 class="card-title">➕ New Patient</h5>
+              <p class="card-text">
+                Register a new patient into the hospital system.
+              </p>
+              <a href="{% url 'create_patient' %}" class="btn btn-primary btn-sm">
+                Create Patient
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- View Patients -->
+        <div class="col-md-4">
+          <div class="card shadow-sm mb-4">
+            <div class="card-body">
+              <h5 class="card-title">📋 Patient Records</h5>
+              <p class="card-text">
+                View and manage registered patients.
+              </p>
+              <a href="{% url 'patient_list' %}" class="btn btn-outline-secondary btn-sm">
+                View Patients
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Messages -->
+        <div class="col-md-4">
+          <div class="card shadow-sm mb-4">
+            <div class="card-body">
+              <h5 class="card-title">📨 Messages</h5>
+              <p class="card-text">
+                Check messages from doctors and admin.
+              </p>
+              <a href="{% url 'inbox' %}" class="btn btn-outline-info btn-sm">
+                Open Inbox
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
     </main>
+
   </div>
 </div>
 {% endblock %}

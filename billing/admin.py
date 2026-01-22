@@ -26,3 +26,18 @@ admin.site.register(CustomUser, CustomUserAdmin)
 admin.site.register(Patient)
 
 
+
+from .models import SLAPolicy
+
+@admin.register(SLAPolicy)
+class SLAPolicyAdmin(admin.ModelAdmin):
+    list_display = (
+        "hospital",
+        "severity",
+        "response_time_minutes",
+        "escalation_time_minutes",
+        "max_escalation_level",
+        "active",
+    )
+    list_filter = ("hospital", "severity", "active")
+    ordering = ("hospital", "severity")

@@ -1,0 +1,46 @@
+{% extends "base_dashboard.html" %}
+{% block content %}
+
+<div class="container mt-4">
+  <h3>📈 Doctor SLA Trends</h3>
+  <p class="text-muted">Monthly SLA performance movement</p>
+
+  {% for doctor, months in trends.items %}
+  <div class="card mb-4">
+    <div class="card-header">
+      <strong>{{ doctor }}</strong>
+    </div>
+
+    <table class="table table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Month</th>
+          <th>SLA %</th>
+          <th>Trend</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in months %}
+        <tr>
+          <td>{{ m.month|date:"F Y" }}</td>
+          <td>{{ m.sla_rate }}%</td>
+          <td>
+            {% if m.trend == "up" %}
+              <span class="text-success">⬆ Improving</span>
+            {% elif m.trend == "down" %}
+              <span class="text-danger">⬇ Declining</span>
+            {% else %}
+              <span class="text-muted">➖ Stable</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% empty %}
+  <p class="text-muted">No trend data available</p>
+  {% endfor %}
+</div>
+
+{% endblock %}

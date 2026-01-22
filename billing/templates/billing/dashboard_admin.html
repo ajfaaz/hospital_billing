@@ -2,34 +2,150 @@
 {% block content %}
 <div class="container-fluid">
   <div class="row">
+
     <!-- Sidebar -->
     <nav class="col-md-2 d-none d-md-block bg-light sidebar">
       <div class="sidebar-sticky">
         <ul class="nav flex-column">
-          <li class="nav-item"><a class="nav-link" href="{% url 'admin_dashboard' %}">🏠 Home</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'inbox' %}">📥 Inbox {% if unread_count > 0 %}<span class="badge badge-danger">{{ unread_count }}</span>{% endif %}</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'compose_message' %}">✉️ Compose</a></li>
 
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'admin_dashboard' %}">🏠 Home</a>
+          </li>
 
-          <hr>
-          <li class="nav-item"><strong>Messages</strong></li>
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'inbox' %}">📥 Inbox</a>
+            <a class="nav-link" href="{% url 'inbox' %}">
+              📥 Inbox
+              {% if unread_count > 0 %}
+                <span class="badge badge-danger">{{ unread_count }}</span>
+              {% endif %}
+            </a>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" href="{% url 'sent_messages' %}">📤 Sent</a>
-          </li>
+
           <li class="nav-item">
             <a class="nav-link" href="{% url 'compose_message' %}">✉️ Compose</a>
           </li>
+
+          <hr>
+
+          <li class="nav-item">
+            <strong class="nav-link text-muted">SLA Monitoring</strong>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'sla_settings' %}">
+              ⚙ SLA Settings
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'doctor_sla_dashboard' %}">
+              👨‍⚕ Doctor Scorecards
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'department_sla_dashboard' %}">
+              🏥 Department Analytics
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'doctor_sla_trend' %}">
+              📈 Doctor Trends
+            </a>
+          </li>
+
+          <hr>
+
+          <li class="nav-item"><strong class="nav-link text-muted">Messages</strong></li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inbox' %}">📥 Inbox</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'sent_messages' %}">📤 Sent</a>
+          </li>
+
         </ul>
       </div>
     </nav>
 
     <!-- Main content -->
     <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
-      <h2>Admin Dashboard</h2>
-      <p>Welcome, {{ user.username }}! Manage patients, appointments, and messages here.</p>
+
+      <h2 class="mt-4">Admin Dashboard</h2>
+      <p class="text-muted">
+        Welcome, <strong>{{ user.username }}</strong>. Monitor system performance and clinical SLAs.
+      </p>
+
+      <!-- SLA Summary Cards -->
+      <div class="row mt-4">
+
+        <div class="col-md-3">
+          <div class="card border-primary mb-3">
+            <div class="card-body text-center">
+              <h6>Total Alerts</h6>
+              <h3>{{ total_alerts|default:"—" }}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="card border-danger mb-3">
+            <div class="card-body text-center">
+              <h6>Critical Open</h6>
+              <h3 class="text-danger">{{ critical_open|default:"—" }}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="card border-success mb-3">
+            <div class="card-body text-center">
+              <h6>SLA Compliance</h6>
+              <h3 class="text-success">{{ sla_compliance|default:"—" }}%</h3>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-3">
+          <div class="card border-warning mb-3">
+            <div class="card-body text-center">
+              <h6>Escalations</h6>
+              <h3 class="text-warning">{{ escalations|default:"—" }}</h3>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="row mt-4">
+        <div class="col-md-12">
+          <div class="card">
+            <div class="card-header">
+              ⚡ Quick SLA Actions
+            </div>
+            <div class="card-body">
+
+              <a href="{% url 'sla_settings' %}" class="btn btn-outline-primary mr-2">
+                ⚙ Manage SLA Policies
+              </a>
+
+              <a href="{% url 'doctor_sla_dashboard' %}" class="btn btn-outline-info mr-2">
+                👨‍⚕ View Doctor Scorecards
+              </a>
+
+              <a href="{% url 'department_sla_dashboard' %}" class="btn btn-outline-secondary">
+                🏥 Department SLA Analytics
+              </a>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 </div>

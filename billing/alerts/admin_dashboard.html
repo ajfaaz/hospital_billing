@@ -1,0 +1,77 @@
+{% extends "base_dashboard.html" %}
+{% block content %}
+
+<h3>🚨 Escalation Control Center</h3>
+
+<div class="row mb-3">
+  <div class="col">🔴 {{ alerts|dictsort:"sla_status"|length }} Critical</div>
+  <div class="col">⏳ Escalating</div>
+  <div class="col">✔ Resolved</div>
+</div>
+
+<table class="table table-hover mt-3">
+  <thead>
+    <tr>
+      <th>Patient</th>
+      <th>Doctor</th>
+      <th>Vitals</th>
+      <th>Status</th>
+      <th>SLA</th>
+      <th>Level</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+
+  <tbody>
+    {% for alert in alerts %}
+    <tr class="
+      {% if alert.sla_status == 'breached' %}table-danger
+      {% elif alert.sla_status == 'warning' %}table-warning
+      {% elif alert.sla_status == 'safe' %}table-info
+      {% else %}table-success{% endif %}
+    ">
+      <td>{{ alert.patient.full_name }}</td>
+      <td>{{ alert.assigned_doctor.full_name }}</td>
+      <td>{{ alert.message|truncatechars:40 }}</td>
+
+      <td>
+        {% if alert.sla_status == 'breached' %}
+          🔴 Breached
+        {% elif alert.sla_status == 'warning' %}
+          🟡 Escalating
+        {% elif alert.sla_status == 'safe' %}
+          🔵 Active
+        {% else %}
+          🟢 Resolved
+        {% endif %}
+      </td>
+
+      <td>
+        {% if alert.next_escalation_deadline %}
+          <span class="sla-timer badge"
+                data-deadline="{{ alert.next_escalation_deadline|date:'c' }}">
+            ⏳ Loading…
+          </span>
+        {% else %}
+          ✔
+        {% endif %}
+      </td>
+
+      <td>
+        Level {{ alert.escalation_level }}
+      </td>
+
+      <td>
+        <a href="{% url 'resolve_alert' alert.id %}" class="btn btn-sm btn-outline-success">
+          Resolve
+        </a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7">No active alerts 🎉</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% include "billing/alerts/sla_timer_script.html" %}
+{% endblock %}

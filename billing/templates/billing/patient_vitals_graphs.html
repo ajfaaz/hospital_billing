@@ -1,0 +1,67 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Vital Signs Trends{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+
+  <h4>Vital Signs Trend — {{ patient.full_name }}</h4>
+
+  <canvas id="pulseChart" height="100"></canvas>
+  <canvas id="tempChart" height="100" class="mt-4"></canvas>
+  <canvas id="bpChart" height="120" class="mt-4"></canvas>
+
+</div>
+
+{{ data|json_script:"vitals-data" }}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const vitalsData = JSON.parse(document.getElementById('vitals-data').textContent);
+const labels = vitalsData.labels;
+
+new Chart(document.getElementById("pulseChart"), {
+  type: "line",
+  data: {
+    labels,
+    datasets: [{
+      label: "Pulse (bpm)",
+      data: vitalsData.pulse,
+      borderWidth: 2
+    }]
+  }
+});
+
+new Chart(document.getElementById("tempChart"), {
+  type: "line",
+  data: {
+    labels,
+    datasets: [{
+      label: "Temperature (°C)",
+      data: vitalsData.temperature,
+      borderWidth: 2
+    }]
+  }
+});
+
+new Chart(document.getElementById("bpChart"), {
+  type: "line",
+  data: {
+    labels,
+    datasets: [
+      {
+        label: "Systolic",
+        data: vitalsData.systolic,
+        borderWidth: 2
+      },
+      {
+        label: "Diastolic",
+        data: vitalsData.diastolic,
+        borderWidth: 2
+      }
+    ]
+  }
+});
+</script>
+{% endblock %}

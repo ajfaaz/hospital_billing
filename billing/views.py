@@ -5,12 +5,14 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Q, Max
 from django.db.models.functions import TruncMonth
 from django.http import HttpResponse, HttpResponseForbidden
+from django.utils import timezone
 from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import get_template
 from .models import MedicineCategory
-
-
+from billing.utils.vitals import evaluate_vitals
+import json
 from xhtml2pdf import pisa
+from datetime import timedelta
 
 from .forms import (
     BillItemForm,
@@ -36,9 +38,12 @@ from .models import (
     LabReport,
     RadiologyReport,
     VitalSign,
+    VitalAlert,
+    VitalAlertLog,
+    SLAPolicy,
 )
-from .utils import log_action
-import json
+from billing.utils.sla import sla_remaining_time, sla_timer_state
+from billing.utils.audit import log_action
 
 from messaging.forms import MessageForm
 from messaging.models import Message
@@ -496,13 +501,30 @@ def add_medical_record(request, patient_id):
         title = request.POST.get("title").strip()
         notes = request.POST.get("notes").strip()
 
+        alert_id = request.POST.get("alert_id")
+        alert = None
+        if alert_id:
+            alert = VitalAlert.objects.filter(id=alert_id, patient=patient).first()
+
         MedicalRecord.objects.create(
             patient=patient,
-            visit=visit,
-            title=title,
+            diagnosis=title,
+            treatment="See notes",
             notes=notes,
-            created_by=request.user,
+            doctor=request.user,
+            alert=alert
         )
+
+        if alert:
+            alert.status = "resolved"
+            alert.save()
+
+            VitalAlertLog.objects.create(
+                alert=alert,
+                action="resolved",
+                performed_by=request.user,
+                notes="Resolved via consultation note"
+            )
 
         messages.success(request, "Medical note added successfully.")
         return redirect("patient_emr", patient_id=patient.id)
@@ -522,9 +544,10 @@ def add_doctor_note(request, patient_id):
 
         MedicalRecord.objects.create(
             patient=patient,
-            visit=visit,
             doctor=request.user,
             notes=notes,
+            diagnosis="Doctor Note",
+            treatment="See notes",
         )
 
         messages.success(request, "Doctor note added successfully.")
@@ -557,31 +580,352 @@ def patient_emr(request, patient_id):
     else:
         active_visit = visits.first()
 
+    alert = None
+    alert_id = request.GET.get("alert")
+
+    if alert_id:
+        alert = VitalAlert.objects.filter(
+            id=alert_id,
+            patient=patient
+        ).first()
+
     # Fetch related data
     medical_records = MedicalRecord.objects.filter(patient=patient).order_by("-created_at")
+
+    latest_vitals = (
+        VitalSign.objects
+        .filter(patient=patient)
+        .select_related("recorded_by")
+        .first()
+    )
+
+    vitals_status = {}
+    if latest_vitals:
+        vitals_status = evaluate_vitals(latest_vitals)
 
     vital_signs = VitalSign.objects.filter(
         visit__patient=patient
     ).order_by("created_at")
 
+    vitals = VitalSign.objects.filter(patient=patient).order_by("created_at")[:30]
+    vital_data = []
+    for v in vitals:
+        status_map = evaluate_vitals(v)
+
+        vital_data.append({
+            "date": v.created_at.strftime("%Y-%m-%d %H:%M"),
+            "systolic": v.blood_pressure_systolic,
+            "diastolic": v.blood_pressure_diastolic,
+            "temperature": float(v.temperature) if v.temperature else None,
+            "pulse": v.heart_rate,
+            "bp_status": status_map.get("blood_pressure", "normal"),
+            "temp_status": status_map.get("temperature", "normal"),
+            "pulse_status": status_map.get("pulse", "normal"),
+        })
+
     lab_reports = LabReport.objects.filter(patient=patient).order_by("-date")
     radiology_reports = RadiologyReport.objects.filter(patient=patient).order_by("-created_at")
     prescriptions = Prescription.objects.filter(visit__patient=patient).select_related("doctor", "visit").order_by("-issued_at")
 
+    # Active (non-resolved) vital alerts for this patient
+    vital_alerts = VitalAlert.objects.filter(patient=patient).exclude(status="resolved")
+
+    context = {
+        "patient": patient,
+        "medical_records": medical_records,
+        "lab_reports": lab_reports,
+        "radiology_reports": radiology_reports,
+        "prescriptions": prescriptions,
+        "active_visit": active_visit,
+        "visits": visits,
+        "vital_signs": vital_signs,
+        "vital_alerts": vital_alerts,
+        "vital_data_json": json.dumps(vital_data),
+        "latest_vitals": latest_vitals,
+        "vitals_status": vitals_status,
+        "linked_alert": alert,
+    }
+
+    return render(request, "billing/patient_emr.html", context)
+
+
+@login_required
+def acknowledge_vital_alert(request, alert_id):
+    alert = get_object_or_404(VitalAlert, id=alert_id)
+
+    if request.user.is_doctor():
+        alert.status = "acknowledged"
+        alert.doctor = request.user
+        alert.acknowledged_at = timezone.now()
+        alert.escalation_deadline = None
+        alert.save()
+
+        VitalAlertLog.objects.create(
+            alert=alert,
+            action="acknowledged",
+            performed_by=request.user,
+            notes="Doctor acknowledged alert"
+        )
+
+    return redirect("patient_emr", patient_id=alert.patient.id)
+
+
+@login_required
+def resolve_vital_alert(request, alert_id):
+    alert = get_object_or_404(VitalAlert, id=alert_id)
+
+    if not request.user.is_doctor():
+        messages.error(request, "Unauthorized action")
+        return redirect("patient_emr", patient_id=alert.patient.id)
+
+    if request.method == "POST":
+        notes = request.POST.get("notes", "").strip()
+
+        if not notes:
+            messages.error(request, "Resolution notes are required")
+            return redirect("resolve_vital_alert", alert_id=alert.id)
+
+        alert.status = "resolved"
+        alert.resolved_at = timezone.now()
+        alert.save()
+
+        VitalAlertLog.objects.create(
+            alert=alert,
+            action="resolved",
+            performed_by=request.user,
+            notes=notes
+        )
+
+        messages.success(request, "Alert resolved with clinical notes")
+        return redirect("patient_emr", patient_id=alert.patient.id)
+
+    return render(request, "billing/resolve_alert.html", {
+        "alert": alert
+    })
+
+
+@login_required
+def doctor_alert_dashboard(request):
+    if not request.user.is_doctor():
+        messages.error(request, "Unauthorized access")
+        return redirect("dashboard")
+
+    alerts = VitalAlert.objects.filter(
+        status__in=["open", "acknowledged", "escalated"]
+    ).select_related("patient").order_by("-created_at")
+
+    for alert in alerts:
+        alert.sla_remaining = sla_remaining_time(alert)
+        alert.sla_state = sla_timer_state(alert)
+
+    return render(request, "billing/doctor_alert_dashboard.html", {
+        "alerts": alerts,
+        "now": timezone.now(),
+    })
+
+
+@login_required
+def doctor_scorecard(request, doctor_id):
+    if not request.user.is_admin():
+        return redirect("dashboard")
+
+    doctor = get_object_or_404(CustomUser, id=doctor_id, role="doctor")
+    hospital = request.user.hospital
+
+    from billing.utils.sla_metrics import doctor_sla_metrics
+    from billing.utils.scorecard import performance_grade
+
+    metrics = doctor_sla_metrics(doctor, hospital)
+    grade = performance_grade(
+        metrics["sla_compliance"],
+        metrics["escalations"]
+    )
+
+    return render(request, "billing/admin/doctor_scorecard.html", {
+        "doctor": doctor,
+        "metrics": metrics,
+        "grade": grade,
+    })
+
+
+@login_required
+def doctor_sla_dashboard(request):
+    if not request.user.is_admin():
+        return redirect("dashboard")
+
+    hospital = request.user.hospital
+
+    from billing.utils.sla_metrics import doctor_sla_metrics
+
+    doctors = doctor_sla_metrics(hospital)
+
+    return render(request, "billing/admin/doctor_sla_dashboard.html", {
+        "doctors": doctors
+    })
+
+@login_required
+def admin_alert_dashboard(request):
+    user = request.user
+
+    if not user.is_admin():
+        return redirect("dashboard")
+
+    alerts = VitalAlert.objects.filter(
+        status__in=["open", "escalated"]
+    ).select_related(
+        "patient", "vital", "doctor"
+    ).order_by("-created_at")
+
+    return render(request, "billing/alerts/admin_dashboard.html", {
+        "alerts": alerts,
+        "now": timezone.now(),
+    })
+
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.shortcuts import render
+
+@staff_member_required
+def sla_settings(request):
+    """Per-hospital SLA policy settings (Admin only)"""
+
+    hospital = request.user.hospital
+
+    return render(request, "billing/admin/sla_settings.html", {
+        "hospital": hospital
+    })
+
+
+@login_required
+def hospital_sla_settings(request):
+    if not request.user.is_admin():
+        return redirect("dashboard")
+
+    hospital = request.user.hospital
+    form = HospitalSLAForm(request.POST or None, instance=hospital)
+
+    if form.is_valid():
+        form.save()
+        messages.success(request, "SLA policies updated successfully")
+
+    return render(request, "billing/admin/hospital_sla.html", {
+        "form": form
+    })
+
+from django.db.models import Avg, Count, F, DurationField, ExpressionWrapper
+
+@login_required
+def doctor_sla_leaderboard(request):
+    if request.user.role not in ["admin", "doctor"]:
+        return redirect("dashboard")
+
+    doctors = (
+        VitalAlert.objects
+        .values("doctor__id", "doctor__full_name")
+        .annotate(
+            total=Count("id"),
+            sla_met=Count(
+                "id",
+                filter=F("acknowledged_at__lte=F('acknowledge_deadline')")
+            ),
+            breached=Count(
+                "id",
+                filter=F("acknowledged_at__gt=F('acknowledge_deadline')")
+            ),
+            avg_response=Avg(
+                ExpressionWrapper(
+                    F("acknowledged_at") - F("created_at"),
+                    output_field=DurationField()
+                )
+            )
+        )
+    )
+
+    leaderboard = []
+    for d in doctors:
+        total = d["total"]
+        sla_rate = round((d["sla_met"] / total) * 100, 1) if total else 0
+
+        leaderboard.append({
+            "name": d["doctor__full_name"],
+            "total": total,
+            "sla_rate": sla_rate,
+            "breached": d["breached"],
+            "avg_response": d["avg_response"],
+        })
+
+    # Sort by SLA rate (DESC), then avg response (ASC)
+    leaderboard.sort(
+        key=lambda x: (-x["sla_rate"], x["avg_response"] or 999999)
+    )
+
     return render(
         request,
-        "billing/patient_emr.html",
-        {
-            "patient": patient,
-            "medical_records": medical_records,
-            "lab_reports": lab_reports,
-            "radiology_reports": radiology_reports,
-            "prescriptions": prescriptions,
-            "active_visit": active_visit,
-            "visits": visits,
-            "vital_signs": vital_signs,
-        },
+        "billing/doctor_sla_leaderboard.html",
+        {"leaderboard": leaderboard}
     )
+
+@login_required
+def doctor_sla_self_view(request):
+    user = request.user
+
+    if user.role != "doctor":
+        return redirect("dashboard")
+
+    alerts = VitalAlert.objects.filter(doctor=user)
+
+    total = alerts.count()
+
+    acknowledged = alerts.filter(
+        acknowledged_at__isnull=False,
+        acknowledged_at__lte=F("acknowledge_deadline")
+    ).count()
+
+    breached = alerts.filter(
+        acknowledged_at__gt=F("acknowledge_deadline")
+    ).count()
+
+    open_alerts = alerts.filter(status="open").count()
+
+    avg_response = alerts.filter(
+        acknowledged_at__isnull=False
+    ).annotate(
+        response_time=ExpressionWrapper(
+            F("acknowledged_at") - F("created_at"),
+            output_field=DurationField()
+        )
+    ).aggregate(avg=Avg("response_time"))["avg"]
+
+    sla_rate = round((acknowledged / total) * 100, 1) if total else 0
+
+    context = {
+        "total": total,
+        "acknowledged": acknowledged,
+        "breached": breached,
+        "open_alerts": open_alerts,
+        "sla_rate": sla_rate,
+        "avg_response": avg_response,
+    }
+
+    return render(request, "billing/doctor_sla_self.html", context)
+
+
+@login_required
+def department_sla_dashboard(request):
+    if not request.user.is_admin():
+        return redirect("dashboard")
+
+    hospital = request.user.hospital
+
+    from billing.utils.department_sla import department_sla_metrics
+
+    departments = department_sla_metrics(hospital)
+
+    return render(request, "billing/admin/department_sla_dashboard.html", {
+        "departments": departments
+    })
+
+
 
 @login_required
 def load_note_template(request, key):
@@ -649,6 +993,68 @@ def add_radiology_report(request, patient_id):
         "billing/add_radiology_report.html",
         {"form": form, "patient": patient, "past_reports": past_reports},
     )
+
+from django.db.models.functions import TruncMonth
+from django.db.models import Count, Avg, F
+from datetime import timedelta
+from django.utils.timezone import now
+
+@login_required
+def doctor_sla_trend(request, doctor_id=None):
+    if request.user.role != "admin":
+        return redirect("dashboard")
+
+    alerts = VitalAlert.objects.all()
+
+    if doctor_id:
+        alerts = alerts.filter(doctor_id=doctor_id)
+
+    data = (
+        alerts
+        .annotate(month=TruncMonth("created_at"))
+        .values("doctor__full_name", "month")
+        .annotate(
+            total=Count("id"),
+            sla_met=Count(
+                "id",
+                filter=F("acknowledged_at__lte=F('acknowledge_deadline')")
+            )
+        )
+        .order_by("month")
+    )
+
+    trends = {}
+    for row in data:
+        name = row["doctor__full_name"]
+        sla_rate = round((row["sla_met"] / row["total"]) * 100, 1) if row["total"] else 0
+
+        trends.setdefault(name, []).append({
+            "month": row["month"],
+            "sla_rate": sla_rate,
+        })
+
+    # Detect trend direction
+    for doctor, months in trends.items():
+        for i in range(1, len(months)):
+            prev = months[i - 1]["sla_rate"]
+            curr = months[i]["sla_rate"]
+
+            if curr > prev:
+                months[i]["trend"] = "up"
+            elif curr < prev:
+                months[i]["trend"] = "down"
+            else:
+                months[i]["trend"] = "flat"
+
+        if months:
+            months[0]["trend"] = "flat"
+
+    return render(
+        request,
+        "billing/doctor_sla_trend.html",
+        {"trends": trends}
+    )
+
 
 @login_required
 def create_prescription(request, visit_id):
@@ -864,7 +1270,6 @@ def add_prescription(request, patient_id):
         visit = PatientVisit.objects.create(
             patient=patient,
             hospital=request.user.hospital,
-            doctor=request.user,
             status="active"
         )
 
@@ -1442,12 +1847,6 @@ def category_list(request):
     return render(request, "billing/medicine/category_list.html", {
         "categories": categories
     })
-@login_required
-def category_list(request):
-    categories = MedicineCategory.objects.filter(hospital=request.user.hospital)
-    return render(request, "billing/medicine/category_list.html", {
-        "categories": categories
-    })
 
 
 @login_required
@@ -1505,42 +1904,120 @@ def delete_category(request, cat_id):
 @login_required
 def add_vital_sign(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
-
     if request.method == "POST":
-        bp = (request.POST.get("bp") or "").strip()
-        systolic = None
-        diastolic = None
-        if "/" in bp:
-            parts = bp.split("/")
-            try:
-                systolic = int(parts[0].strip())
-            except Exception:
-                systolic = None
-            try:
-                diastolic = int(parts[1].strip())
-            except Exception:
-                diastolic = None
-
-        # try to attach an active visit if available
         visit = PatientVisit.objects.filter(patient=patient, status="active").first()
 
-        VitalSign.objects.create(
+        def parse_int(val):
+            return int(val) if val is not None and str(val).strip() else None
+
+        def parse_float(val):
+            return float(val) if val is not None and str(val).strip() else None
+
+        systolic = parse_int(request.POST.get("systolic"))
+        diastolic = parse_int(request.POST.get("diastolic"))
+        heart_rate = parse_int(request.POST.get("pulse"))
+        temperature = parse_float(request.POST.get("temperature"))
+        respiratory_rate = parse_int(request.POST.get("respiratory_rate"))
+        spo2 = parse_int(request.POST.get("spo2"))
+
+        vital = VitalSign.objects.create(
             patient=patient,
             visit=visit,
-            systolic=systolic,
-            diastolic=diastolic,
-            pulse=request.POST.get("pulse") or None,
-            temperature=request.POST.get("temp") or None,
-            respiratory_rate=request.POST.get("resp") or None,
-            spo2=request.POST.get("spo2") or None,
+            blood_pressure_systolic=systolic,
+            blood_pressure_diastolic=diastolic,
+            heart_rate=heart_rate,
+            temperature=temperature,
+            respiratory_rate=respiratory_rate,
+            spo2=spo2,
             recorded_by=request.user,
         )
-        messages.success(request, "Vital signs recorded successfully!")
+
+        # Evaluate the recorded vitals
+        alerts_dict = evaluate_vitals(vital)
+        request.session["vital_alerts"] = list(alerts_dict.items())
+
+        # Create an alert record if any metric is critical
+        if "critical" in alerts_dict.values():
+            critical_items = "; ".join(f"{k}: {v}" for k, v in alerts_dict.items() if v == "critical")
+            
+            sla = SLAPolicy.objects.filter(
+                hospital=patient.hospital,
+                severity="critical",
+                active=True
+            ).first()
+
+            now = timezone.now()
+            if sla:
+                acknowledge_deadline = now + timedelta(minutes=sla.response_time_minutes)
+                escalation_deadline = now + timedelta(minutes=sla.escalation_time_minutes)
+            else:
+                acknowledge_deadline = None
+                escalation_deadline = None
+
+            alert = VitalAlert.objects.create(
+                patient=patient,
+                vital=vital,
+                doctor=visit.assigned_doctor if visit else None,
+                message=("Critical vital signs detected: " + critical_items) if critical_items else "Critical vital signs detected",
+                sla_policy=sla,
+                acknowledge_deadline=acknowledge_deadline,
+                escalation_deadline=escalation_deadline,
+            )
+
+            VitalAlertLog.objects.create(
+                alert=alert,
+                action="created",
+                performed_by=request.user,
+                notes="System detected critical vitals"
+            )
+
+        # Determine overall status
+        status_priority = {"critical": 2, "high": 1, "normal": 0}
+        overall_status = "normal"
+        alert_messages = []
+
+        for metric, severity in alerts_dict.items():
+            if status_priority.get(severity, 0) > status_priority.get(overall_status, 0):
+                overall_status = severity
+            if severity != "normal":
+                alert_messages.append(f"{metric.replace('_', ' ').title()}: {severity}")
+
+        vital.status = overall_status
+        vital.alert_message = "; ".join(alert_messages)
+        vital.save()
+
+        if overall_status == "critical":
+            messages.error(request, "⚠️ CRITICAL vitals recorded!")
+        elif overall_status == "high":
+            messages.warning(request, "⚠️ Abnormal vitals detected.")
+        else:
+            messages.success(request, "Vitals recorded successfully.")
+
         return redirect("patient_emr", patient_id=patient.id)
 
-    return render(request, "billing/add_vitals.html", {
+    return render(request, "billing/add_vitals.html", {"patient": patient})
+
+
+
+@login_required
+def patient_vitals_graphs(request, patient_id):
+    patient = get_object_or_404(Patient, id=patient_id)
+
+    vitals = VitalSign.objects.filter(patient=patient).order_by("created_at")
+
+    data = {
+        "labels": [v.created_at.strftime("%d %b %H:%M") for v in vitals],
+        "pulse": [v.heart_rate for v in vitals],
+        "temperature": [float(v.temperature) if v.temperature else None for v in vitals],
+        "systolic": [v.blood_pressure_systolic for v in vitals],
+        "diastolic": [v.blood_pressure_diastolic for v in vitals],
+    }
+
+    return render(request, "billing/patient_vitals_graphs.html", {
         "patient": patient,
+        "data": data,
     })
+
 
 
 # ------------------------------------------------------------------

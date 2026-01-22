@@ -1,0 +1,9 @@
+{% if status == "critical" %}
+  <span class="badge bg-danger">🔴 CRITICAL</span>
+{% elif status == "high" %}
+  <span class="badge bg-warning text-dark">🟡 HIGH</span>
+{% elif status == "normal" %}
+  <span class="badge bg-success">🟢 NORMAL</span>
+{% else %}
+  <span class="badge bg-secondary">⚪ N/A</span>
+{% endif %}

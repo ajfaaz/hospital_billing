@@ -1,0 +1,116 @@
+{% extends "base_dashboard.html" %}
+{% load static %}
+
+{% block title %}Doctor Alerts{% endblock %}
+
+{% block content %}
+<style>
+.badge {
+  font-size: 0.85rem;
+}
+</style>
+<div class="container-fluid">
+  <div class="row">
+
+    <!-- Sidebar -->
+    <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+      <div class="sidebar-sticky pt-3">
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'doctor_dashboard' %}">
+              🏠 Dashboard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="{% url 'doctor_alert_dashboard' %}">
+              🚨 Alerts
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'doctor_prescriptions' %}">
+              💊 My Prescriptions
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'doctor_sla_self' %}">
+              📊 My SLA Scorecard
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'inbox' %}">
+              📥 Inbox
+            </a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4 pt-4">
+        <h3 class="fw-bold mb-4 text-danger">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i> Critical Alerts
+        </h3>
+
+        {% if alerts %}
+            <div class="card shadow-sm border-0">
+                <div class="list-group list-group-flush">
+                    {% for alert in alerts %}
+                    <div class="list-group-item p-3">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1 text-danger">
+                                {{ alert.patient.full_name }}
+                            </h5>
+                            <small class="text-muted">{{ alert.created_at|date:"M d, Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">{{ alert.message }}</p>
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            <div>
+                                <span class="badge {% if alert.status == 'open' or alert.status == 'escalated' %}bg-danger{% elif alert.status == 'acknowledged' %}bg-warning text-dark{% endif %}">
+                                    {{ alert.get_status_display }}
+                                </span>
+                                {% if alert.sla_remaining is not None %}
+                                    {% if alert.sla_state == "safe" %}
+                                        <span class="badge bg-success ms-2">
+                                            ⏱ {% widthratio alert.sla_remaining 60 1 %} min
+                                        </span>
+                                    {% elif alert.sla_state == "warning" %}
+                                        <span class="badge bg-warning text-dark ms-2">
+                                            ⏱ URGENT
+                                        </span>
+                                    {% else %}
+                                        <span class="badge bg-danger ms-2">⛔ OVERDUE</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted ms-2">—</span>
+                                {% endif %}
+                            </div>
+                            
+                            <div>
+                                <a href="{% url 'patient_emr' alert.patient.id %}" class="btn btn-sm btn-outline-primary me-1">
+                                    View EMR
+                                </a>
+                                {% if alert.status == 'open' or alert.status == 'escalated' %}
+                                    <a href="{% url 'acknowledge_vital_alert' alert.id %}" class="btn btn-sm btn-warning">
+                                        Acknowledge
+                                    </a>
+                                {% elif alert.status == 'acknowledged' %}
+                                    <a href="{% url 'resolve_vital_alert' alert.id %}" class="btn btn-sm btn-danger">
+                                        Resolve
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% else %}
+            <div class="alert alert-success">
+                <i class="bi bi-check-circle me-2"></i> No active critical alerts.
+            </div>
+        {% endif %}
+    </main>
+  </div>
+</div>
+
+{% endblock %}

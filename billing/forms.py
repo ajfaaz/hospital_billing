@@ -38,7 +38,7 @@ class CustomUserCreationForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ("username", "email", "role", "password1", "password2")
+        fields = ("username", "email", "role", "specialty", "password1", "password2")
 
     def save(self, commit=True):
         user = super().save(commit=False)
@@ -159,3 +159,27 @@ class PrescriptionForm(forms.ModelForm):
                 }
             ),
         }
+
+# ----------------- Hospital SLA Form -----------------
+
+from .models import Hospital, SLAPolicy
+
+class HospitalSLAForm(forms.ModelForm):
+    class Meta:
+        model = Hospital
+        fields = [
+            "sla_doctor_ack_minutes",
+            "sla_head_doctor_minutes",
+            "sla_admin_minutes",
+        ]
+
+class SLAPolicyForm(forms.ModelForm):
+    class Meta:
+        model = SLAPolicy
+        fields = [
+            "severity",
+            "response_time_minutes",
+            "escalation_time_minutes",
+            "max_escalation_level",
+            "active",
+        ]

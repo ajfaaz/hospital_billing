@@ -77,6 +77,59 @@
         <!-- ============================================================= -->
         <div class="col-md-8">
 
+            <!-- VITAL ALERTS -->
+            {% if vital_alerts %}
+            <div class="alert alert-danger shadow-sm mb-4">
+                <h5 class="alert-heading"><i class="bi bi-exclamation-triangle-fill"></i> Active Vital Alerts</h5>
+                <hr>
+                {% for alert in vital_alerts %}
+                <div class="mb-3 {% if not forloop.first %}border-top pt-3 mt-3{% endif %}">
+                    <p class="mb-1">
+                        <strong>{{ alert.created_at|date:"M d, Y H:i" }}:</strong> {{ alert.message }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Status:</strong>
+                        {% if alert.status == 'open' or alert.status == 'escalated' %}
+                        <span class="badge bg-danger">{{ alert.get_status_display }}</span>
+                        {% elif alert.status == 'acknowledged' %}
+                        <span class="badge bg-warning text-dark">{{ alert.get_status_display }}</span>
+                        {% endif %}
+                        {% if alert.next_escalation_deadline %}
+                        <small class="text-danger ms-2">
+                            <i class="bi bi-hourglass-split"></i> Escalates in {{ alert.next_escalation_deadline|timeuntil }}
+                        </small>
+                        {% endif %}
+                        {% if alert.doctor %}
+                        <small class="text-muted"> (by Dr. {{ alert.doctor.get_full_name|default:alert.doctor.username }})</small>
+                        {% endif %}
+                    </p>
+
+                    {% if user.is_doctor %}
+                        <div class="mb-2">
+                        {% if alert.status == 'open' or alert.status == 'escalated' %}
+                            <a href="{% url 'acknowledge_vital_alert' alert.id %}" class="btn btn-sm btn-warning">Acknowledge</a>
+                        {% elif alert.status == 'acknowledged' %}
+                             <a href="{% url 'resolve_vital_alert' alert.id %}"
+                                class="btn btn-sm btn-danger">
+                                Resolve
+                             </a>
+                        {% endif %}
+                        </div>
+                    {% endif %}
+
+                    <div class="mt-2 ps-3 border-start">
+                      <small class="text-muted">Alert History</small>
+                      <ul class="list-unstyled mb-0">
+                        {% for log in alert.logs.all %}
+                          <li class="small">🕒 {{ log.created_at|date:"M d, Y H:i" }} — <strong>{{ log.action|capfirst }}</strong> by {{ log.performed_by.get_full_name|default:log.performed_by.username }}</li>
+                        {% endfor %}
+                      </ul>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
             <!-- VISIT SELECTOR -->
             <div class="d-flex justify-content-end mb-3">
                 <label class="me-2 fw-bold">Visit:</label>
@@ -121,6 +174,9 @@
                                         <span class="timeline-point bg-primary"></span>
                                         <div class="timeline-event">
                                             <h6>{{ rec.title }}</h6>
+                                            {% if rec.alert %}
+                                            <span class="badge bg-danger mb-1">Alert-linked</span>
+                                            {% endif %}
                                             <p class="text-muted small">
                                                 {{ rec.created_at|date:"M d, Y H:i" }}
                                             </p>
@@ -155,7 +211,12 @@
                                 {% for record in medical_records %}
                                 <div class="card mb-3 shadow-sm">
                                     <div class="card-header d-flex justify-content-between">
-                                        <strong>Dr. {{ record.doctor.get_full_name }}</strong>
+                                        <div>
+                                            <strong>Dr. {{ record.doctor.get_full_name }}</strong>
+                                            {% if record.alert %}
+                                            <span class="badge bg-danger ms-2">Alert-linked</span>
+                                            {% endif %}
+                                        </div>
                                         <small class="text-muted">{{ record.created_at|date:"M d, Y H:i" }}</small>
                                     </div>
 
@@ -176,9 +237,15 @@
 
                     <div class="d-flex justify-content-between mb-3">
                         <h5>Vital Signs</h5>
-                        <a href="{% url 'add_vital_sign' patient.id %}" class="btn btn-primary btn-sm">
-                            <i class="bi bi-plus-lg"></i> Add Vital
-                        </a>
+                        <div>
+                            <a href="{% url 'patient_vitals_graphs' patient.id %}"
+                               class="btn btn-outline-info btn-sm me-2">
+                              📊 View Vitals Trends
+                            </a>
+                            <a href="{% url 'add_vital_sign' patient.id %}" class="btn btn-primary btn-sm">
+                                <i class="bi bi-plus-lg"></i> Add Vital
+                            </a>
+                        </div>
                     </div>
 
                     <!-- Charts -->
@@ -188,11 +255,11 @@
                         </div>
 
                         <div class="col-md-6 mb-4">
-                            <canvas id="tempChart"></canvas>
+                            <canvas id="tempChart" height="80"></canvas>
                         </div>
 
                         <div class="col-md-6 mb-4">
-                            <canvas id="pulseChart"></canvas>
+                            <canvas id="pulseChart" height="80"></canvas>
                         </div>
 
                         <div class="col-md-6 mb-4">
@@ -298,7 +365,7 @@
                             <h5>Prescriptions</h5>
 
                             {% if user.role == "doctor" and active_visit %}
-                            <a href="{% url 'add_prescription' active_visit.id %}"
+                            <a href="{% url 'add_prescription' patient.id %}"
                                class="btn btn-primary btn-sm">
                                 <i class="bi bi-plus-lg"></i> New Prescription
                             </a>
@@ -385,6 +452,14 @@
             </div>
 
             <div class="modal-body">
+                {% if linked_alert %}
+                <div class="alert alert-danger">
+                  <strong>🚨 Alert Triggered:</strong>
+                  {{ linked_alert.message }}
+                </div>
+                <input type="hidden" name="alert_id" value="{{ linked_alert.id }}">
+                {% endif %}
+
                 <div class="mb-3">
                     <label>Title</label>
                     <input name="title" class="form-control" required>
@@ -413,39 +488,82 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function(){
-    const labels = {{ chart_labels|safe }};
+    const vitals = {{ vital_data_json|safe }};
+    const labels = vitals.map(v => v.date);
 
-    new Chart(bpChart, {
-        type: 'line',
+    // --- Blood Pressure Chart ---
+    const systolicData = vitals.map(v => ({
+        x: v.date,
+        y: v.systolic,
+        borderColor: v.bp_status === "critical" ? "red" : v.bp_status === "high" ? "orange" : "green"
+    }));
+
+    const diastolicData = vitals.map(v => ({
+        x: v.date,
+        y: v.diastolic,
+        borderColor: v.bp_status === "critical" ? "red" : v.bp_status === "high" ? "orange" : "green"
+    }));
+
+    new Chart(document.getElementById("bpChart"), {
+        type: "line",
         data: {
             labels: labels,
             datasets: [
-                { label: "Systolic", data: {{ bp_systolic|safe }}, borderWidth:2 },
-                { label: "Diastolic", data: {{ bp_diastolic|safe }}, borderWidth:2 }
+                {
+                    label: "Systolic",
+                    data: systolicData,
+                    borderWidth: 2,
+                    tension: 0.4,
+                    borderColor: 'rgb(75, 192, 192)',
+                    pointBackgroundColor: systolicData.map(d => d.borderColor),
+                    pointBorderColor: systolicData.map(d => d.borderColor)
+                },
+                {
+                    label: "Diastolic",
+                    data: diastolicData,
+                    borderWidth: 2,
+                    tension: 0.4,
+                    borderColor: 'rgb(54, 162, 235)',
+                    pointBackgroundColor: diastolicData.map(d => d.borderColor),
+                    pointBorderColor: diastolicData.map(d => d.borderColor)
+                }
             ]
         }
     });
 
-    new Chart(tempChart, {
+    // --- Temperature Chart ---
+    new Chart(document.getElementById("tempChart"), {
         type: 'line',
-        data: { labels: labels, datasets: [{ label: "Temperature", data: {{ temperature|safe }}, borderWidth:2 }] }
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Temperature (°C)",
+                data: vitals.map(v => v.temperature),
+                borderColor: vitals.map(v =>
+                    v.temp_status === "critical" ? "red" :
+                    v.temp_status === "high" ? "orange" : "green"
+                ),
+                tension: 0.4
+            }]
+        }
     });
 
-    new Chart(pulseChart, {
-        type: 'line',
-        data: { labels: labels, datasets: [{ label: "Pulse", data: {{ pulse|safe }}, borderWidth:2 }] }
+    // --- Pulse Chart ---
+    new Chart(document.getElementById("pulseChart"), {
+        type: "line",
+        data: {
+            labels: labels,
+            datasets: [{
+                label: "Pulse (bpm)",
+                data: vitals.map(v => v.pulse),
+                borderColor: vitals.map(v =>
+                    v.pulse_status === "critical" ? "red" :
+                    v.pulse_status === "high" ? "orange" : "green"
+                ),
+                tension: 0.4
+            }]
+        }
     });
 
-    new Chart(respChart, {
-        type: 'line',
-        data: { labels: labels, datasets: [{ label: "Respiration", data: {{ resp|safe }}, borderWidth:2 }] }
-    });
-
-    new Chart(spoChart, {
-        type: 'line',
-        data: { labels: labels, datasets: [{ label: "SpO₂", data: {{ spo2|safe }}, borderWidth:2 }] }
-    });
-});
 </script>
 {% endblock %}

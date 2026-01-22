@@ -1,7 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 from django.conf import settings
+from django.utils import timezone
 import uuid
+from datetime import timedelta
 
 
 # ==============================
@@ -11,6 +13,11 @@ import uuid
 class Hospital(models.Model):
     name = models.CharField(max_length=100)
     slug = models.SlugField(unique=True)
+
+    # SLA POLICIES (minutes)
+    sla_doctor_ack_minutes = models.PositiveIntegerField(default=5)
+    sla_head_doctor_minutes = models.PositiveIntegerField(default=10)
+    sla_admin_minutes = models.PositiveIntegerField(default=20)
 
     def __str__(self):
         return self.name
@@ -29,6 +36,7 @@ class CustomUser(AbstractUser):
 
     role = models.CharField(max_length=20, choices=USER_ROLE_CHOICES, default='receptionist')
     hospital = models.ForeignKey(Hospital, null=True, blank=True, on_delete=models.SET_NULL)
+    specialty = models.CharField(max_length=100, blank=True, null=True)
 
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
@@ -54,6 +62,48 @@ class CustomUser(AbstractUser):
 
     def is_accountant(self):
         return self.role == "accountant"
+
+
+class SLAPolicy(models.Model):
+    SEVERITY_CHOICES = [
+        ("critical", "Critical"),
+        ("high", "High"),
+        ("normal", "Normal"),
+    ]
+
+    hospital = models.ForeignKey(
+        Hospital,
+        on_delete=models.CASCADE,
+        related_name="sla_policies"
+    )
+
+    severity = models.CharField(
+        max_length=10,
+        choices=SEVERITY_CHOICES
+    )
+
+    response_time_minutes = models.PositiveIntegerField(
+        help_text="Time allowed before alert must be acknowledged"
+    )
+
+    escalation_time_minutes = models.PositiveIntegerField(
+        help_text="Time after which alert escalates"
+    )
+
+    max_escalation_level = models.PositiveIntegerField(
+        default=3,
+        help_text="Doctor → Head Doctor → Admin"
+    )
+
+    active = models.BooleanField(default=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ("hospital", "severity")
+
+    def __str__(self):
+        return f"{self.hospital} | {self.severity.upper()} SLA"
 
 
 
@@ -349,6 +399,7 @@ class MedicalRecord(models.Model):
     note_type = models.CharField(max_length=50, default="general") 
     notes = models.TextField(blank=True, null=True)
     prescribed_medicines = models.ManyToManyField(Medicine, blank=True, related_name="medical_records")
+    alert = models.ForeignKey('VitalAlert', null=True, blank=True, on_delete=models.SET_NULL)
     created_at = models.DateTimeField(auto_now_add=True)
 
 
@@ -395,10 +446,16 @@ class Appointment(models.Model):
 # ==============================
 
 class VitalSign(models.Model):
+    STATUS_CHOICES = [
+        ("normal", "Normal"),
+        ("high", "High"),
+        ("critical", "Critical"),
+    ]
+
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     visit = models.ForeignKey(PatientVisit, on_delete=models.CASCADE, null=True, blank=True)
     recorded_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True)
-    
+
     heart_rate = models.IntegerField(null=True, blank=True)
     blood_pressure_systolic = models.IntegerField(null=True, blank=True)
     blood_pressure_diastolic = models.IntegerField(null=True, blank=True)
@@ -406,10 +463,164 @@ class VitalSign(models.Model):
     respiratory_rate = models.IntegerField(null=True, blank=True)
     spo2 = models.IntegerField(null=True, blank=True)
 
+    status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default="normal"
+    )
+    alert_message = models.TextField(blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
 
+
     def __str__(self):
         return f"Vitals for {self.patient} on {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+
+class VitalAlert(models.Model):
+    STATUS_CHOICES = [
+        ("open", "Open"),
+        ("acknowledged", "Acknowledged"),
+        ("resolved", "Resolved"),
+        ("escalated", "Escalated"),
+    ]
+
+    ESCALATION_TARGETS = [
+        ("doctor", "Doctor"),
+        ("head_doctor", "Head Doctor"),
+        ("admin", "Admin"),
+    ]
+
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    vital = models.ForeignKey(VitalSign, on_delete=models.CASCADE)
+    doctor = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vital_alerts"
+    )
+
+    sla_policy = models.ForeignKey(SLAPolicy, null=True, blank=True, on_delete=models.SET_NULL)
+
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default="open"
+    )
+
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    escalated = models.BooleanField(default=False)
+    escalated_at = models.DateTimeField(null=True, blank=True)
+
+    escalation_level = models.PositiveIntegerField(default=0)
+    
+    acknowledge_deadline = models.DateTimeField(null=True, blank=True)
+    escalation_deadline = models.DateTimeField(null=True, blank=True)
+
+    last_escalated_at = models.DateTimeField(null=True, blank=True)
+
+    # 0 = none, 1 = first escalation, 2 = second escalation
+    escalated_to = models.CharField(
+        max_length=20,
+        choices=ESCALATION_TARGETS,
+        null=True,
+        blank=True,
+    )
+
+    def __str__(self):
+        return f"Alert: {self.patient} ({self.status})"
+
+    def next_escalation_deadline(self):
+        hospital = self.patient.hospital
+
+        if self.status == "resolved":
+            return None
+
+        if self.escalation_level == 0:
+            return self.created_at + timedelta(
+                minutes=hospital.sla_doctor_ack_minutes
+            )
+
+        if self.escalation_level == 1:
+            return self.escalated_at + timedelta(
+                minutes=hospital.sla_head_doctor_minutes
+            )
+
+        if self.escalation_level == 2:
+            return self.escalated_at + timedelta(
+                minutes=hospital.sla_admin_minutes
+            )
+
+        return None
+
+    def sla_status(self):
+        deadline = self.next_escalation_deadline()
+        if not deadline:
+            return "resolved"
+
+        remaining = (deadline - timezone.now()).total_seconds()
+
+        if remaining <= 0:
+            return "breached"
+        elif remaining < 180:
+            return "warning"
+        return "safe"
+
+
+class VitalAlertLog(models.Model):
+    alert = models.ForeignKey(
+        VitalAlert,
+        on_delete=models.CASCADE,
+        related_name="logs"
+    )
+
+    action = models.CharField(
+        max_length=50
+    )  # created, acknowledged, resolved
+
+    performed_by = models.ForeignKey(
+        CustomUser,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.action} @ {self.created_at}"
+
+
+
+# =======================================================
+# CONSULTATION NOTES    
+# =======================================================
+
+class ConsultationNote(models.Model):
+    patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+    doctor = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+
+    alert = models.ForeignKey(
+        VitalAlert,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="consultations"
+    )
+
+    notes = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)

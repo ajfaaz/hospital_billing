@@ -1,0 +1,28 @@
+{% extends "base_dashboard.html" %}
+{% block content %}
+
+<h4>⏱ SLA Policy Configuration</h4>
+<p>These rules control escalation timing for critical vitals.</p>
+
+<form method="post" class="card p-4 shadow-sm mt-3">
+  {% csrf_token %}
+
+  <div class="mb-3">
+    <label>Doctor Acknowledgement (minutes)</label>
+    {{ form.sla_doctor_ack_minutes }}
+  </div>
+
+  <div class="mb-3">
+    <label>Head Doctor Escalation (minutes)</label>
+    {{ form.sla_head_doctor_minutes }}
+  </div>
+
+  <div class="mb-3">
+    <label>Admin Escalation (minutes)</label>
+    {{ form.sla_admin_minutes }}
+  </div>
+
+  <button class="btn btn-primary">Save SLA Policy</button>
+</form>
+
+{% endblock %}

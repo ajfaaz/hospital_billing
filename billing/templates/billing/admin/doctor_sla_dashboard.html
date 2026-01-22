@@ -1,0 +1,63 @@
+{% extends "base_dashboard.html" %}
+{% block content %}
+
+<h4>👨‍⚕️ Doctor SLA Scorecards</h4>
+
+<table class="table table-hover mt-4">
+  <thead>
+    <tr>
+      <th>Doctor</th>
+      <th>Alerts Assigned</th>
+      <th>Avg Response</th>
+      <th>SLA Compliance</th>
+      <th>Escalations</th>
+      <th>Risk</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in doctors %}
+    <tr>
+      <td>
+        <strong>{{ d.doctor.full_name }}</strong>
+        <br><small class="text-muted">{{ d.doctor.specialty }}</small>
+      </td>
+      <td>{{ d.total_alerts }}</td>
+      <td>{{ d.avg_ack_time }}</td>
+      <td>
+        <div class="progress" style="height: 20px;">
+          <div class="progress-bar 
+            {% if d.sla_compliance >= 85 %}bg-success
+            {% elif d.sla_compliance >= 60 %}bg-warning
+            {% else %}bg-danger{% endif %}" 
+            role="progressbar" 
+            style="width: {{ d.sla_compliance }}%;">
+            {{ d.sla_compliance }}%
+          </div>
+        </div>
+      </td>
+      <td class="text-danger fw-bold">{{ d.escalations }}</td>
+      <td>
+        {% if d.risk == "green" %}
+          <span class="badge bg-success">Low Risk</span>
+        {% elif d.risk == "amber" %}
+          <span class="badge bg-warning text-dark">Medium Risk</span>
+        {% else %}
+          <span class="badge bg-danger">High Risk</span>
+        {% endif %}
+      </td>
+      <td>
+        <a href="{% url 'doctor_scorecard' d.doctor.id %}" class="btn btn-sm btn-outline-primary">
+          View Scorecard
+        </a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr>
+      <td colspan="7" class="text-center text-muted">No doctor data available.</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+
+  <h3>⚙ SLA Settings</h3>
+  <p class="text-muted">
+    Configure SLA thresholds per hospital, department, and alert severity.
+  </p>
+
+  <div class="card mt-3">
+    <div class="card-body">
+      <p><strong>Status:</strong> Active</p>
+      <p>This section will control:</p>
+
+      <ul>
+        <li>⏱ Response time for CRITICAL alerts</li>
+        <li>⏱ Escalation delays</li>
+        <li>🏥 Per-hospital SLA rules</li>
+        <li>👨‍⚕ Doctor performance measurement</li>
+      </ul>
+
+      <div class="alert alert-info mt-3">
+        SLA configuration UI will be enabled in the next step.
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

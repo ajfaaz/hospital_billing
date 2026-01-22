@@ -134,3 +134,8 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+
+VITAL_ALERT_ESCALATION_RULES = {
+    1: {"minutes": 10, "role": "head_doctor"},
+    2: {"minutes": 20, "role": "admin"},
+}
