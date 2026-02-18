@@ -180,11 +180,59 @@ class Bill(models.Model):
     patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
     invoice_no = models.CharField(max_length=50, unique=True, default=uuid.uuid4)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
     total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    patient_payable = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0
+    )
+    third_party_payable = models.DecimalField(
+        max_digits=12, decimal_places=2, default=0
+    )
+
+    third_party = models.ForeignKey(
+        'ThirdPartyPayer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+
+    is_fully_paid = models.BooleanField(default=False)
+    
+    CLAIM_STATUS = [
+        ("draft", "Draft"),
+        ("submitted", "Submitted"),
+        ("paid", "Paid"),
+        ("rejected", "Rejected"),
+    ]
+
+    claim_status = models.CharField(
+        max_length=20,
+        choices=CLAIM_STATUS,
+        default="draft"
+    )
+
+    claim_reference = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True
+    )
+
+    claimed_at = models.DateTimeField(null=True, blank=True)
+
+    paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"Invoice {self.invoice_no}"
+
+    @property
+    def third_party_type(self):
+        if not self.third_party:
+            return "none"
+        if self.third_party.payer_type in ["federal", "state"]:
+            return "nhis"
+        return "sponsor"
 
 
 class BillItem(models.Model):
@@ -213,6 +261,48 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"{self.bill.invoice_no} - ₦{self.amount_paid}"
+
+
+class Payer(models.Model):
+    PAYER_TYPE = [
+        ("government", "Government"),
+        ("state", "State Government"),
+        ("hospital", "Hospital"),
+        ("private", "Private"),
+    ]
+
+    code = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=100)
+    payer_type = models.CharField(max_length=20, choices=PAYER_TYPE)
+
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name
+
+
+class PatientCoverage(models.Model):
+    patient = models.OneToOneField(Patient, on_delete=models.CASCADE)
+    payer = models.ForeignKey(Payer, on_delete=models.PROTECT)
+
+    patient_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=100
+    )
+    government_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0
+    )
+
+    approved_by = models.ForeignKey(
+        CustomUser, on_delete=models.SET_NULL,
+        null=True, blank=True
+    )
+
+    notes = models.TextField(blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.patient} → {self.payer}"
 
 
 # ==============================
@@ -624,3 +714,32 @@ class ConsultationNote(models.Model):
 
     notes = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
+
+#-------------------------------------------------------
+# THIRD PARTY PAYERS
+#-------------------------------------------------------
+
+
+class ThirdPartyPayer(models.Model):
+    PAYER_TYPE = [
+        ("federal", "Federal (NHIS)"),
+        ("state", "State Scheme"),
+        ("private", "Private Sponsor"),
+        ("hospital", "Hospital Sponsored"),
+    ]
+
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=30, unique=True)  
+    payer_type = models.CharField(max_length=20, choices=PAYER_TYPE)
+
+    default_patient_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=0
+    )
+    default_payer_percentage = models.DecimalField(
+        max_digits=5, decimal_places=2, default=100
+    )
+
+    active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.name

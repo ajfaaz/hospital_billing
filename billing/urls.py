@@ -92,18 +92,29 @@ urlpatterns = [
     ),
 
     path(
-        "admin/sla/leaderboard/",
+        "app/sla/leaderboard/",
         views.doctor_sla_leaderboard,
         name="doctor_sla_leaderboard"
     ),
- 
     
+    path("app/sla/trend/", views.doctor_sla_trend, name="doctor_sla_trend"),
+
+
+    # NHIS Claims Dashboard
+    path(
+        "accountant/claims/",
+        views.nhis_claims_dashboard,
+        name="nhis_claims_dashboard",
+    ),
+
 
     # Appointments
     path('appointments/', views.appointment_list, name='appointment_list'),
     path('appointments/create/', views.create_appointment, name='create_appointment'),
 
     # Billing
+    path('bills/', views.bill_list, name='bill_list'),
+    path('bills/create/', views.create_bill_index, name='create_bill'),
     path('bills/create/<int:patient_id>/', views.create_bill, name='create_bill'),
     path('bills/<int:bill_id>/invoice/', views.view_invoice, name='view_invoice'),
     path('bills/<int:bill_id>/invoice/pdf/', views.download_invoice_pdf, name='download_invoice_pdf'),
@@ -134,6 +145,8 @@ urlpatterns = [
 
     # Registration
     path('register/', views.register, name='register'),
+    path("patients/register/", views.register_patient, name="register_patient"),
+
 
     # Prescriptions
     path("doctor/prescriptions/", views.doctor_prescriptions, name="doctor_prescriptions"),

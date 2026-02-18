@@ -16,9 +16,11 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from billing.views import home
 
 urlpatterns = [
     path('admin/', admin.site.urls),  # Django admin
+    path('', home, name='home'),
     path('', include('billing.urls')),  # All app routes
     path('', include('django.contrib.auth.urls')),  # Login/Logout/Password reset
 ]

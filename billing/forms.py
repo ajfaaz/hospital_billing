@@ -4,6 +4,8 @@ from django.contrib.auth import get_user_model
 from django.forms.widgets import DateInput, TimeInput, Textarea, Select
 from .models import (
     Patient,
+    PatientCoverage,
+    Payer,
     Appointment,
     Bill,
     BillItem,
@@ -23,6 +25,42 @@ class PatientForm(forms.ModelForm):
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date'}),
         }
+
+
+class PatientRegistrationForm(forms.ModelForm):
+    payer = forms.ModelChoiceField(
+        queryset=Payer.objects.all(),
+        required=True,
+        label="Payment Scheme"
+    )
+
+    class Meta:
+        model = Patient
+        fields = [
+            "full_name",
+            "date_of_birth",
+            "phone_number",
+            "address",
+        ]
+
+    def save(self, commit=True):
+        patient = super().save(commit=commit)
+
+        # Only create coverage when the patient has been saved (commit=True).
+        if commit:
+            payer = self.cleaned_data.get('payer')
+            if payer:
+                PatientCoverage.objects.update_or_create(
+                    patient=patient,
+                    defaults={
+                        'payer': payer,
+                        'patient_percentage': 0,
+                        'government_percentage': 100,
+                        'active': True,
+                    }
+                )
+
+        return patient
 
 
 # ----------------- USER -----------------

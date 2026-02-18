@@ -23,17 +23,20 @@
             width: 250px;
             top: 56px;
             left: 0;
-            background-color: #343a40;
+            background-color: #162447;
             padding-top: 1rem;
         }
-        .sidebar a {
+        .sidebar .nav-link {
             color: #ffffff;
             padding: 12px;
             display: block;
             text-decoration: none;
             font-size: 15px;
         }
-        .sidebar a:hover { background-color: #495057; }
+        .sidebar .nav-link:hover {
+            background-color: #1f4068;
+            border-radius: 5px;
+        }
         .content { margin-left: 250px; padding: 20px; }
     </style>
 
@@ -42,71 +45,61 @@
 <body>
 
 <!-- NAVBAR -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-    <div class="container-fluid">
-        <a class="navbar-brand fw-bold" href="#">🏥 Hospital Billing</a>
-
-        <div class="d-flex align-items-center">
-            <a href="{% url 'inbox' %}" class="btn btn-sm btn-outline-light me-3 position-relative">
-                <i class="bi bi-envelope"></i> Messages
-
-                {% if unread_count > 0 %}
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                          data-unread-badge>{{ unread_count }}</span>
-                {% else %}
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
-                          data-unread-badge style="display:none;">0</span>
-                {% endif %}
-            </a>
-
-            <form method="post" action="{% url 'logout' %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-link text-white">
-                    <i class="bi bi-box-arrow-right"></i> Logout
-                </button>
-            </form>
-        </div>
+<nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background-color:#1f3c88;">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">🏥 HMS</a>
+    
+    <div class="ms-auto">
+      {% if user.is_authenticated %}
+        <span class="text-white me-3">
+          {{ user.username }}
+        </span>
+        <a href="{% url 'logout' %}" class="btn btn-outline-light btn-sm">
+          Logout
+        </a>
+      {% endif %}
     </div>
+  </div>
 </nav>
 
 <!-- SIDEBAR -->
-<div class="sidebar">
+<nav class="col-md-2 d-none d-md-block sidebar" style="background-color:#162447;">
     {% block sidebar %}
 
         <!-- COMMON -->
-        <a href="{% url 'dashboard' %}">
+        <a class="nav-link text-white" href="{% url 'dashboard' %}">
             <i class="bi bi-speedometer2 me-2"></i> Dashboard
         </a>
 
-        <a href="{% url 'inbox' %}">
+        <a class="nav-link text-white" href="{% url 'inbox' %}">
             <i class="bi bi-envelope me-2"></i> Inbox
         </a>
 
         <!-- PHARMACIST -->
         {% if user.role == "pharmacist" %}
             <hr>
-            <a href="{% url 'pharmacist_dashboard' %}">
+            <a class="nav-link text-white" href="{% url 'pharmacist_dashboard' %}">
                 <i class="bi bi-speedometer me-2"></i> Pharmacist Dashboard
             </a>
 
-            <a href="{% url 'medicine_list' %}">
+            <a class="nav-link text-white" href="{% url 'medicine_list' %}">
                 <i class="bi bi-capsule me-2"></i> Medicine Inventory
             </a>
 
-            <a href="{% url 'add_medicine' %}">
+            <a class="nav-link text-white" href="{% url 'add_medicine' %}">
                 <i class="bi bi-plus-circle me-2"></i> Add Medicine
             </a>
 
-            <a href="{% url 'pharmacist_prescriptions' %}">
+            <a class="nav-link text-white" href="{% url 'pharmacist_prescriptions' %}">
                 <i class="bi bi-prescription me-2"></i> Pending Prescriptions
             </a>
 
-            <a href="{% url 'dispense_history' %}">
+            <a class="nav-link text-white" href="{% url 'dispense_history' %}">
                 <i class="bi bi-clock-history me-2"></i> Dispense History
             </a>
             
             <li>
-                <a href="{% url 'category_list' %}" class="nav-link">
+                <a href="{% url 'category_list' %}" class="nav-link text-white">
                     <i class="fas fa-tags"></i> Medicine Categories
                 </a>
             </li>
@@ -116,17 +109,25 @@
         <!-- DOCTOR -->
         {% if user.role == "doctor" %}
             <hr>
-            <a href="{% url 'patient_list' %}">
+            <a class="nav-link text-white" href="{% url 'patient_list' %}">
                 <i class="bi bi-people me-2"></i> Patients
             </a>
 
-            <a href="{% url 'doctor_prescriptions' %}">
+            <a class="nav-link text-white" href="{% url 'doctor_prescriptions' %}">
                 <i class="bi bi-journal-medical me-2"></i> My Prescriptions
+            </a>
+
+            <a class="nav-link text-white" href="{% url 'doctor_alert_dashboard' %}">
+                <i class="bi bi-exclamation-triangle me-2"></i> Vital Alerts
+            </a>
+
+            <a class="nav-link text-white" href="#">
+                <i class="bi bi-activity me-2"></i> Performance Stats
             </a>
         {% endif %}
 
     {% endblock %}
-</div>
+</nav>
 
 <!-- MESSAGES -->
 {% if messages %}

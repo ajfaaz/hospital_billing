@@ -22,6 +22,7 @@ from .forms import (
     MedicalRecordForm,
     LabReportForm,
     RadiologyReportForm,
+    PatientRegistrationForm,
 )
 from .models import (
     Appointment,
@@ -41,9 +42,13 @@ from .models import (
     VitalAlert,
     VitalAlertLog,
     SLAPolicy,
+    PatientCoverage,
+    ThirdPartyPayer,
+    Payer,
 )
 from billing.utils.sla import sla_remaining_time, sla_timer_state
 from billing.utils.audit import log_action
+from billing.utils.billing import calculate_bill_split
 
 from messaging.forms import MessageForm
 from messaging.models import Message
@@ -112,17 +117,6 @@ def dashboard(request):
 # =======================================================
 
 def home(request):
-    if request.user.is_authenticated:
-        role_dashboard_map = {
-            "admin": "admin_dashboard",
-            "doctor": "doctor_dashboard",
-            "receptionist": "receptionist_dashboard",
-            "accountant": "accountant_dashboard",
-            "radiologist": "radiologist_dashboard",
-            "lab_technician": "lab_dashboard",
-            "pharmacist": "pharmacist_dashboard",
-        }
-        return redirect(role_dashboard_map.get(request.user.role, "dashboard"))
     return render(request, "home.html")
 
 
@@ -187,6 +181,52 @@ def create_patient(request):
     return render(request, "billing/create_patient.html")
 
 
+@login_required
+def register_patient(request):
+    payers = Payer.objects.filter(active=True)
+
+    if request.method == "POST":
+        # ensure patient is linked to the user's hospital
+        if not getattr(request.user, 'hospital', None):
+            messages.error(request, "You are not linked to a hospital.")
+            return redirect("receptionist_dashboard")
+
+        # Patient info
+        patient = Patient.objects.create(
+            full_name=request.POST.get("full_name"),
+            date_of_birth=request.POST.get("date_of_birth") or None,
+            phone_number=request.POST.get("phone"),
+            hospital=request.user.hospital,
+        )
+
+        payer = Payer.objects.get(id=request.POST.get("payer"))
+
+        # Default coverage logic
+        patient_percentage = 100
+        government_percentage = 0
+
+        if payer.code in ["NHIS", "KSCHMA"]:
+            patient_percentage = 10
+            government_percentage = 90
+
+        if payer.code == "HOSPITAL_FREE":
+            patient_percentage = 0
+            government_percentage = 100
+
+        PatientCoverage.objects.create(
+            patient=patient,
+            payer=payer,
+            patient_percentage=patient_percentage,
+            government_percentage=government_percentage,
+            approved_by=request.user,
+            notes=request.POST.get("coverage_notes", "")
+        )
+
+        return redirect("receptionist_dashboard")
+
+    return render(request, "billing/register_patient.html", {"payers": payers})
+
+
 # =======================================================
 # APPOINTMENTS
 # =======================================================
@@ -249,9 +289,22 @@ def create_appointment(request):
 # =======================================================
 
 @login_required
+def bill_list(request):
+    hospital = request.user.hospital
+    bills = Bill.objects.filter(hospital=hospital).select_related('patient').order_by('-created_at')
+    return render(request, "billing/bill_list.html", {"bills": bills})
+
+@login_required
+def create_bill_index(request):
+    messages.info(request, "Please select a patient to create a bill.")
+    return redirect("patient_list")
+
+@login_required
 def create_bill(request, patient_id):
     patient = get_object_or_404(Patient, id=patient_id)
     services = Service.objects.filter(hospital=patient.hospital)
+    # include patient coverage info in template context
+    coverage = getattr(patient, "patientcoverage", None)
 
     if request.method == "POST":
         items_data, total = [], 0
@@ -265,11 +318,16 @@ def create_bill(request, patient_id):
             total += subtotal
             items_data.append({"service": service, "quantity": qty, "subtotal": subtotal})
 
+        patient_payable, third_party_payable, third_party = calculate_bill_split(patient, total)
+
         bill = Bill.objects.create(
             patient=patient,
             total_amount=total,
             created_by=request.user,
             hospital=patient.hospital,
+            patient_payable=patient_payable,
+            third_party_payable=third_party_payable,
+            third_party=third_party,
         )
         log_action(request.user, "create", "Bill", bill.id, f"Created bill of ${total} for {patient}")
 
@@ -278,7 +336,15 @@ def create_bill(request, patient_id):
 
         return redirect("view_invoice", bill_id=bill.id)
 
-    return render(request, "billing/create_bill.html", {"patient": patient, "services": services})
+    return render(
+        request,
+        "billing/create_bill.html",
+        {
+            "patient": patient,
+            "services": services,
+            "coverage": coverage,
+        },
+    )
 
 
 @login_required
@@ -330,6 +396,13 @@ def record_payment(request, bill_id):
             payment_mode=payment_method,
             hospital=bill.hospital,
         )
+
+        # Update bill status — only consider the patient's portion
+        total_paid = bill.payment_set.aggregate(total=Sum('amount_paid'))['total'] or 0
+        if total_paid >= bill.patient_payable:
+            bill.is_fully_paid = True
+            bill.save()
+
         messages.success(request, "Payment recorded successfully.")
         return redirect("view_invoice", bill_id=bill.id)
     return render(request, "billing/record_payment.html", {"bill": bill})
@@ -1233,7 +1306,16 @@ def lab_dashboard(request):
 
 @login_required
 def pharmacist_dashboard(request):
-    prescriptions = Prescription.objects.filter(status='issued').order_by('-issued_at')
+    hospital = request.user.hospital
+    prescriptions = Prescription.objects.filter(status='issued', hospital=hospital).order_by('-issued_at')
+
+    # Daily Dispense Count
+    today = timezone.now().date()
+    daily_dispensed_count = Prescription.objects.filter(
+        status='dispensed',
+        hospital=hospital,
+        dispensed_at__date=today
+    ).count()
 
     print("Pharmacist Dashboard → Found prescriptions:", prescriptions.count())  # debug log
     for p in prescriptions:
@@ -1241,6 +1323,7 @@ def pharmacist_dashboard(request):
 
     context = {
         "prescriptions": prescriptions,
+        "daily_dispensed_count": daily_dispensed_count,
     }
     return render(request, "billing/pharmacist_dashboard.html", context)
 
@@ -1591,13 +1674,13 @@ def add_medicine(request):
 
 
 @login_required
-def edit_medicine(request, med_id):
+def edit_medicine(request, pk):
     if not request.user.is_pharmacist() and not request.user.is_admin():
         return redirect("dashboard")
 
     hospital = request.user.hospital
 
-    medicine = get_object_or_404(Medicine, id=med_id, hospital=hospital)
+    medicine = get_object_or_404(Medicine, id=pk, hospital=hospital)
     categories = MedicineCategory.objects.filter(hospital=hospital)
 
     if request.method == "POST":
@@ -1617,7 +1700,7 @@ def edit_medicine(request, med_id):
             name__iexact=name
         ).exclude(id=medicine.id).exists():
             messages.error(request, "A medicine with this name already exists.")
-            return redirect("edit_medicine", med_id=medicine.id)
+            return redirect("edit_medicine", pk=medicine.id)
 
         # Update safely
         medicine.name = name
@@ -2021,55 +2104,32 @@ def patient_vitals_graphs(request, patient_id):
 
 
 # ------------------------------------------------------------------
-# Doctor note templates (global constant)
+# NHIS CLAIMS DASHBOARD
 # ------------------------------------------------------------------
-DOCTOR_NOTE_TEMPLATES = {
-    "soap":
-    """**S: Subjective**
-- Chief Complaint: 
-- History of Present Illness: 
-- Review of Systems: 
 
-**O: Objective**
-- Vital Signs: 
-- Physical Examination: 
+@login_required
+def nhis_claims_dashboard(request):
+    nhis = Payer.objects.filter(code="NHIS").first()
+    kschma = Payer.objects.filter(code="KSCHMA").first()
 
-**A: Assessment**
-- Working Diagnosis: 
+    # Bills where the linked ThirdPartyPayer is a government scheme
+    government_bills = Bill.objects.filter(third_party__payer_type__in=["federal", "state"]) 
 
-**P: Plan**
-- Labs/Imaging Requested:
-- Medications:
-- Follow-up:""",
+    nhis_bills = government_bills.filter(patient__patientcoverage__payer=nhis)
+    kschma_bills = government_bills.filter(patient__patientcoverage__payer=kschma)
 
-    "hpi":
-    """**History of Present Illness**
-- Onset:
-- Duration:
-- Severity:
-- Quality:
-- Aggravating/Relieving Factors:
-- Associated Symptoms:
-- Previous Episodes:""",
+    def bill_totals(qs):
+        return {
+            "total": qs.aggregate(t=Sum("third_party_payable"))["t"] or 0,
+            "paid": qs.filter(is_fully_paid=True).aggregate(p=Sum("third_party_payable"))["p"] or 0,
+            "unpaid": qs.filter(is_fully_paid=False).aggregate(u=Sum("third_party_payable"))["u"] or 0,
+        }
 
-    "assessment":
-    """**Assessment**
-- Primary Diagnosis:
-- Differential Diagnosis #1: 
-- Differential Diagnosis #2:
-- Summary:""",
+    context = {
+        "nhis": bill_totals(nhis_bills),
+        "kschma": bill_totals(kschma_bills),
+        "nhis_bills": nhis_bills.order_by("-created_at"),
+        "kschma_bills": kschma_bills.order_by("-created_at"),
+    }
 
-    "plan":
-    """**Management Plan**
-- Medications:
-- Investigations:
-- Procedures:
-- Advice/Education:
-- Follow-up:""",
-
-    "quick":
-    """**Quick Note**
-- Summary:
-- Action Taken:
-- Next Steps:""",
-}
+    return render(request, "billing/accountant/nhis_claims_dashboard.html", context)

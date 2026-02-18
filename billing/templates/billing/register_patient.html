@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+  <h3>Register New Patient</h3>
+
+  <form method="post" class="card p-4 shadow-sm">
+    {% csrf_token %}
+
+    {{ form.as_p }}
+
+    <button class="btn btn-primary mt-3">
+      Register Patient
+    </button>
+  </form>
+
+  <div class="alert alert-info mt-3">
+    <strong>Note:</strong>
+    NHIS / KSCHMA patients automatically pay 10%.
+    Free patients pay 0%.
+  </div>
+</div>
+{% endblock %}

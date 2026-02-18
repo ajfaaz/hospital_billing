@@ -106,8 +106,8 @@ AUTH_USER_MODEL = 'billing.CustomUser'
 
 # LOGIN / LOGOUT REDIRECTS
 LOGIN_URL = '/login/'
-LOGIN_REDIRECT_URL = '/redirect-by-role/'
-LOGOUT_REDIRECT_URL = '/login/'
+LOGIN_REDIRECT_URL = '/dashboard/'   # Or your main dashboard
+LOGOUT_REDIRECT_URL = '/'
 
 # EMAIL SETTINGS
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

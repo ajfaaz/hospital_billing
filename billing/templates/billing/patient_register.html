@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="container-fluid">
+  <div class="row">
+
+    <!-- Sidebar -->
+    <nav class="col-md-2 d-none d-md-block bg-light sidebar">
+      <div class="sidebar-sticky">
+        <ul class="nav flex-column">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'receptionist_dashboard' %}">🏠 Dashboard</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link active" href="#">➕ Register Patient</a>
+          </li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- Main -->
+    <main class="col-md-9 ml-sm-auto col-lg-10 px-4">
+      <h3 class="mt-4">Register New Patient</h3>
+      <p class="text-muted">Enter patient details and coverage information.</p>
+
+      <form method="post" class="mt-4">
+        {% csrf_token %}
+
+        <!-- Patient Info -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-header"><strong>Patient Information</strong></div>
+          <div class="card-body">
+
+            <div class="form-row">
+              <div class="form-group col-md-6">
+                <label>Full Name</label>
+                <input type="text" name="full_name" class="form-control" required>
+              </div>
+
+              <div class="form-group col-md-3">
+                <label>Gender</label>
+                <select name="gender" class="form-control" required>
+                  <option value="">Select</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+              </div>
+
+              <div class="form-group col-md-3">
+                <label>Date of Birth</label>
+                <input type="date" name="date_of_birth" class="form-control">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Phone Number</label>
+              <input type="text" name="phone" class="form-control">
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Coverage -->
+        <div class="card shadow-sm mb-4">
+          <div class="card-header"><strong>Payment Coverage</strong></div>
+          <div class="card-body">
+
+            <div class="form-group">
+              <label>Coverage Type</label>
+              <select name="payer" class="form-control" required>
+                <option value="">Select Coverage</option>
+                {% for payer in payers %}
+                  <option value="{{ payer.id }}">{{ payer.name }}</option>
+                {% endfor %}
+              </select>
+              <small class="text-muted">
+                NHIS / KSCHMA patients will be billed automatically based on policy.
+              </small>
+            </div>
+
+            <div class="form-group">
+              <label>Notes (optional)</label>
+              <textarea name="coverage_notes" class="form-control" rows="2"></textarea>
+            </div>
+
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+          ✅ Register Patient
+        </button>
+
+      </form>
+    </main>
+
+  </div>
+</div>
+
+{% endblock %}

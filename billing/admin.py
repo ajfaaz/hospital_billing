@@ -3,6 +3,7 @@ from .models import CustomUser, Patient
 from django.contrib.auth.admin import UserAdmin
 from .models import Service, Bill, BillItem, Payment
 from .models import Medicine
+from .models import ThirdPartyPayer, PatientCoverage
 
 
 class BillItemInline(admin.TabularInline):
@@ -16,6 +17,8 @@ class BillAdmin(admin.ModelAdmin):
 admin.site.register(Service)
 admin.site.register(Bill, BillAdmin)
 admin.site.register(Payment)
+admin.site.register(ThirdPartyPayer)
+admin.site.register(PatientCoverage)
 
 
 class CustomUserAdmin(UserAdmin):

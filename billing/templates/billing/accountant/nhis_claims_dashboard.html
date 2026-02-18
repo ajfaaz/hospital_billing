@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block content %}
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+  :root {
+    /* Brand Palette */
+    --brand-blue: #0F172A;       /* slate-900 */
+    --brand-gold: #F59E0B;       /* amber-500 */
+    --brand-gold-hover: #D97706; /* amber-600 */
+    
+    /* Status Colors */
+    --status-success: #10B981;
+    --status-error: #EF4444;
+
+    /* Light Mode Variables */
+    --bg-body: #F9FAFB;
+    --bg-card: #FFFFFF;
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --border-color: #E2E8F0;
+    
+    /* Component Specific */
+    --header-text-color: #0F172A;
+    --card-header-bg: #0F172A;
+    --card-header-text: #FFFFFF;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      /* Dark Mode Variables */
+      --bg-body: #111827;
+      --bg-card: #1F2937;
+      --text-primary: #F9FAFB;
+      --text-secondary: #9CA3AF;
+      --border-color: #374151;
+      
+      /* Component Specific */
+      --header-text-color: #F9FAFB;
+      --card-header-bg: #374151;
+      --card-header-text: #F9FAFB;
+    }
+  }
+
+  body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-primary);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--header-text-color);
+    font-weight: 600;
+  }
+
+  .text-muted {
+    color: var(--text-secondary) !important;
+  }
+
+  /* Cards */
+  .card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+  }
+
+  .card-header {
+    background-color: var(--card-header-bg);
+    color: var(--card-header-text);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  /* Tables */
+  .table {
+    color: var(--text-primary);
+  }
+  
+  .table thead th {
+    border-bottom: 2px solid var(--border-color);
+    color: var(--header-text-color);
+  }
+
+  .table td, .table th {
+    border-top: 1px solid var(--border-color);
+  }
+
+  .table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .table-striped tbody tr:nth-of-type(odd) {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+  }
+
+  /* Status Text Overrides */
+  .text-success { color: var(--status-success) !important; }
+  .text-danger { color: var(--status-error) !important; }
+
+  /* Badges */
+  .badge-success {
+    background-color: var(--status-success);
+    color: #FFFFFF;
+  }
+  
+  .badge-warning {
+    background-color: var(--brand-gold);
+    color: #000000;
+  }
+
+  /* 
+   * UI Component Guidelines Implementation 
+   */
+
+  /* Buttons */
+  .btn-primary {
+    background-color: var(--brand-gold);
+    border-color: var(--brand-gold);
+    color: #000000;
+    font-weight: 500;
+  }
+  .btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: var(--brand-gold-hover) !important;
+    border-color: var(--brand-gold-hover) !important;
+    color: #000000 !important;
+  }
+
+  .btn-outline-primary {
+    color: var(--brand-blue);
+    border-color: var(--brand-blue);
+    background-color: transparent;
+    font-weight: 500;
+  }
+  .btn-outline-primary:hover {
+    background-color: #1E293B; /* slate-800 */
+    border-color: #1E293B;
+    color: #FFFFFF;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .btn-outline-primary {
+      color: #F9FAFB;
+      border-color: #F9FAFB;
+    }
+    .btn-outline-primary:hover {
+      background-color: #F9FAFB;
+      color: #0F172A;
+    }
+  }
+
+  /* Sidebar / Navigation (Global overrides) */
+  .sidebar, .main-sidebar, #sidebar-wrapper {
+    background-color: var(--brand-blue);
+    color: #FFFFFF;
+  }
+  .sidebar .nav-link, .main-sidebar .nav-link {
+    color: #CBD5E1; /* slate-300 */
+  }
+  .sidebar .nav-link:hover, .main-sidebar .nav-link:hover {
+    color: #E2E8F0; /* slate-200 */
+  }
+  .sidebar .nav-link.active, .main-sidebar .nav-link.active {
+    color: var(--brand-gold) !important;
+  }
+  .sidebar .nav-link.active i, .main-sidebar .nav-link.active i {
+    color: var(--brand-gold) !important;
+  }
+</style>
+
+<div class="container-fluid">
+  <h3 class="mt-4">NHIS / KSCHMA Claims Dashboard</h3>
+  <p class="text-muted">Government-covered patient billing summary</p>
+
+  <!-- SUMMARY -->
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5>NHIS (Federal)</h5>
+          <p>Total: ₦{{ nhis.total }}</p>
+          <p class="text-success">Paid: ₦{{ nhis.paid }}</p>
+          <p class="text-danger">Outstanding: ₦{{ nhis.unpaid }}</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5>KSCHMA (Kano State)</h5>
+          <p>Total: ₦{{ kschma.total }}</p>
+          <p class="text-success">Paid: ₦{{ kschma.paid }}</p>
+          <p class="text-danger">Outstanding: ₦{{ kschma.unpaid }}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NHIS TABLE -->
+  <div class="card mt-4 shadow-sm">
+    <div class="card-header"><strong>NHIS Invoices</strong></div>
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Invoice</th>
+            <th>Patient</th>
+            <th>Date</th>
+            <th>Govt Payable</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bill in nhis_bills %}
+          <tr>
+            <td>{{ bill.invoice_no }}</td>
+            <td>{{ bill.patient.full_name }}</td>
+            <td>{{ bill.created_at|date:"Y-m-d" }}</td>
+            <td>₦{{ bill.third_party_payable }}</td>
+            <td>
+              {% if bill.is_fully_paid %}
+                <span class="badge badge-success">Paid</span>
+              {% else %}
+                <span class="badge badge-warning">Pending</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted">No NHIS claims</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- KSCHMA TABLE -->
+  <div class="card mt-4 shadow-sm">
+    <div class="card-header"><strong>KSCHMA Invoices</strong></div>
+    <div class="table-responsive">
+      <table class="table table-striped mb-0">
+        <thead>
+          <tr>
+            <th>Invoice</th>
+            <th>Patient</th>
+            <th>Date</th>
+            <th>Govt Payable</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bill in kschma_bills %}
+          <tr>
+            <td>{{ bill.invoice_no }}</td>
+            <td>{{ bill.patient.full_name }}</td>
+            <td>{{ bill.created_at|date:"Y-m-d" }}</td>
+            <td>₦{{ bill.third_party_payable }}</td>
+            <td>
+              {% if bill.is_fully_paid %}
+                <span class="badge badge-success">Paid</span>
+              {% else %}
+                <span class="badge badge-warning">Pending</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted">No KSCHMA claims</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}

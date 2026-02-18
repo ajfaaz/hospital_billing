@@ -1,0 +1,44 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>TotalCare</title>
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1f3c88, #39a2db);
+            color: white;
+        }
+        .hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            text-align: center;
+        }
+        .btn-custom {
+            padding: 10px 30px;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="hero">
+    <h1 class="display-4 font-weight-bold">
+        🏥 TotalCare
+    </h1>
+    <p class="lead mt-3">
+        Professional Healthcare Billing, Claims & Patient Management
+    </p>
+
+    <div class="mt-4">
+        <a href="{% url 'login' %}" class="btn btn-light btn-custom mr-3">
+            🔐 Login
+        </a>
+    </div>
+</div>
+
+</body>
+</html>

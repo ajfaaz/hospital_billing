@@ -2,34 +2,124 @@
 {% block content %}
 <div class="container-fluid">
   <div class="row">
+
     <!-- Sidebar -->
     <nav class="col-md-2 d-none d-md-block bg-light sidebar">
       <div class="sidebar-sticky">
         <ul class="nav flex-column">
-          <li class="nav-item"><a class="nav-link" href="{% url 'accountant_dashboard' %}">🏠 Home</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'inbox' %}">📥 Inbox {% if unread_count > 0 %}<span class="badge badge-danger">{{ unread_count }}</span>{% endif %}</a></li>
-          <li class="nav-item"><a class="nav-link" href="{% url 'compose_message' %}">✉️ Compose</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'accountant_dashboard' %}">🏠 Home</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'nhis_claims_dashboard' %}">
+              🧾 NHIS / KSCHMA Claims
+            </a>
+          </li>
 
 
           <hr>
-          <li class="nav-item"><strong>Messages</strong></li>
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'inbox' %}">📥 Inbox</a>
+            <strong class="nav-link text-muted">Billing</strong>
           </li>
+
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'sent_messages' %}">📤 Sent</a>
+            <a class="nav-link" href="{% url 'create_bill' %}">
+              🧾 Create Bill
+            </a>
           </li>
+
           <li class="nav-item">
-            <a class="nav-link" href="{% url 'compose_message' %}">✉️ Compose</a>
+            <a class="nav-link" href="{% url 'bill_list' %}">
+              📄 All Bills
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'nhis_claims_dashboard' %}">
+              🏥 NHIS / KSCHMA Claims
+            </a>
           </li>
         </ul>
       </div>
     </nav>
 
-    <!-- Main content -->
-    <main role="main" class="col-md-9 ml-sm-auto col-lg-10 px-4">
-      <h2>Accountant Dashboard</h2>
-      <p>Welcome {{ user.full_name }}! Here you can manage billing, payment history, and send messages.</p>
+    <!-- Main -->
+    <main class="col-md-9 ml-sm-auto col-lg-10 px-4">
+      <h2 class="mt-3">NHIS Claims Dashboard</h2>
+
+      <!-- Summary Cards -->
+      <div class="row mt-4">
+        <div class="col-md-4">
+          <div class="card shadow-sm">
+            <div class="card-body">
+              <h6>Total NHIS Claims</h6>
+              <h4>₦{{ total_claims }}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card shadow-sm border-success">
+            <div class="card-body">
+              <h6>Paid by Government</h6>
+              <h4 class="text-success">₦{{ total_paid }}</h4>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-md-4">
+          <div class="card shadow-sm border-danger">
+            <div class="card-body">
+              <h6>Outstanding Claims</h6>
+              <h4 class="text-danger">₦{{ total_unpaid }}</h4>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NHIS Bills Table -->
+      <div class="card mt-4 shadow-sm">
+        <div class="card-header">
+          <strong>NHIS Invoices</strong>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-striped mb-0">
+            <thead>
+              <tr>
+                <th>Invoice</th>
+                <th>Patient</th>
+                <th>Date</th>
+                <th>Govt Payable</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for bill in nhis_bills %}
+              <tr>
+                <td>{{ bill.invoice_no }}</td>
+                <td>{{ bill.patient.full_name }}</td>
+                <td>{{ bill.created_at|date:"Y-m-d" }}</td>
+                <td>₦{{ bill.third_party_payable }}</td>
+                <td>
+                  {% if bill.is_fully_paid %}
+                    <span class="badge badge-success">Paid</span>
+                  {% else %}
+                    <span class="badge badge-warning">Pending</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="5" class="text-center text-muted">
+                  No NHIS claims found.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </main>
   </div>
 </div>
