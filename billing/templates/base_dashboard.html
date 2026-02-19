@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Hospital Dashboard{% endblock %}</title>
+    <title>{% block title %}TotalCare{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
     <!-- Bootstrap 5 -->
@@ -47,7 +47,7 @@
 <!-- NAVBAR -->
 <nav class="navbar navbar-expand-lg navbar-dark fixed-top" style="background-color:#1f3c88;">
   <div class="container-fluid">
-    <a class="navbar-brand" href="#">🏥 HMS</a>
+    <a class="navbar-brand" href="{% url 'dashboard' %}">🏥 TotalCare</a>
     
     <div class="ms-auto">
       {% if user.is_authenticated %}
@@ -98,11 +98,9 @@
                 <i class="bi bi-clock-history me-2"></i> Dispense History
             </a>
             
-            <li>
-                <a href="{% url 'category_list' %}" class="nav-link text-white">
-                    <i class="fas fa-tags"></i> Medicine Categories
-                </a>
-            </li>
+            <a class="nav-link text-white" href="{% url 'category_list' %}">
+                <i class="bi bi-tags me-2"></i> Medicine Categories
+            </a>
 
         {% endif %}
 

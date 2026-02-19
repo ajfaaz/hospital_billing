@@ -1,5 +1,5 @@
 """
-URL configuration for hospital_billing project.
+URL configuration for totalcare project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/5.2/topics/http/urls/
@@ -24,4 +24,3 @@ urlpatterns = [
     path('', include('billing.urls')),  # All app routes
     path('', include('django.contrib.auth.urls')),  # Login/Logout/Password reset
 ]
-

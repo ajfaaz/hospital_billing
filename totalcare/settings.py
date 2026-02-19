@@ -12,8 +12,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY SETTINGS
 SECRET_KEY = config('SECRET_KEY', default='your-dev-secret-key')
-DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost").split(",")
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="localhost,127.0.0.1").split(",")
 
 # APPLICATIONS
 INSTALLED_APPS = [
@@ -25,11 +24,12 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'whitenoise.runserver_nostatic',
     'django.contrib.staticfiles',
 ]
 
 
-ASGI_APPLICATION = "hospital_billing.asgi.application"
+ASGI_APPLICATION = "totalcare.asgi.application"
 
 # For now we’ll use in-memory channel layer (sufficient for dev)
 CHANNEL_LAYERS = {
@@ -51,8 +51,8 @@ MIDDLEWARE = [
 ]
 
 # URL and WSGI
-ROOT_URLCONF = 'hospital_billing.urls'
-WSGI_APPLICATION = 'hospital_billing.wsgi.application'
+ROOT_URLCONF = 'totalcare.urls'
+WSGI_APPLICATION = 'totalcare.wsgi.application'
 
 # TEMPLATES
 TEMPLATES = [
@@ -71,15 +71,22 @@ TEMPLATES = [
         },
     },
 ]
-
 # DATABASE CONFIGURATION
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if os.environ.get("RENDER") and os.name != 'nt':
+    # Production (Render / Supabase / PostgreSQL)
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=os.environ.get("DATABASE_URL")
+        )
     }
-}
-
+else:
+    # Local development (SQLite)
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": os.path.join(BASE_DIR, "db.sqlite3"),
+        }
+    }
 
 # PASSWORD VALIDATION
 AUTH_PASSWORD_VALIDATORS = [

@@ -1,4 +1,4 @@
-# hospital_billing/asgi.py
+# totalcare/asgi.py
 import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
@@ -6,7 +6,7 @@ from channels.auth import AuthMiddlewareStack
 import billing.routing
 import messaging.routing
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "hospital_billing.settings")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "totalcare.settings")
 
 django_asgi_app = get_asgi_application()
 

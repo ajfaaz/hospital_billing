@@ -1,2 +1,2 @@
-import hospital_billing.wsgi
+import totalcare.wsgi
 print("WSGI imported successfully")
